@@ -1,0 +1,8 @@
+{
+  "output_id": "wrong",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "propagation_lag",
+  "owner": null,
+  "diagnosis_text": "Maya's in data-team, which has access — this is a propagation timing delay from a recent group change. Re-sync her permissions and she'll have access; the grant just hasn't finished propagating to her yet."
+}

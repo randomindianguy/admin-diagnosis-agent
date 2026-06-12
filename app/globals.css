@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Glean-aligned base. Palette, type, and spacing come from tokens.ts via the
+   Tailwind utilities (Q7/step-3 wiring); this file stays minimal on purpose. */

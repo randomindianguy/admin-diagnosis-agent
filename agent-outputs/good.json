@@ -1,0 +1,8 @@
+{
+  "output_id": "good",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "nested_subgroup_inheritance_gap",
+  "owner": null,
+  "diagnosis_text": "This is a nested-group inheritance issue. You checked data-team, which does hold the grant on 'Q3 Revenue Models' — but Maya isn't a direct member of data-team. She's a member of data-team-ml, which is nested under data-team. By default, access grants on a parent group don't propagate down to nested subgroups. The fix is either to grant access directly on data-team-ml, or to move Maya into data-team as a direct member."
+}

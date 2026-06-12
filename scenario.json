@@ -1,0 +1,56 @@
+{
+  "scenario_id": "seed-1",
+  "category": "spine",
+  "mutated_from": null,
+  "description": "Spine: nested-subgroup inheritance gap, clean confident-resolve. Operator's claim is deliberately wrong on the membership-level fact.",
+
+  "setup": {
+    "trigger": {
+      "kind": "operator_message",
+      "text": "Maya on the data team can't open the 'Q3 Revenue Models' folder in Drive. She's in the data-team group, which I checked has access. Can you look?"
+    },
+    "status_picture": {
+      "users": [
+        {
+          "id": "user:maya.r",
+          "name": "Maya R.",
+          "direct_group_memberships": ["group:data-team-ml"]
+        }
+      ],
+      "groups": [
+        { "id": "group:data-team", "name": "data-team" },
+        { "id": "group:data-team-ml", "name": "data-team-ml", "parent": "group:data-team" }
+      ],
+      "resources": [
+        {
+          "id": "resource:q3-revenue-models",
+          "name": "Q3 Revenue Models",
+          "grants": [{ "principal": "group:data-team", "level": "viewer" }]
+        }
+      ]
+    },
+    "change_log": [],
+    "reference_library_pages": ["nested-group-inheritance"]
+  },
+
+  "expected_answer": {
+    "verdict": "resolve",
+    "root_cause": "nested_subgroup_inheritance_gap",
+    "owner_if_escalate": null,
+    "expected_gate_signal_if_escalate": null,
+    "diagnosis_text_grading": {
+      "mode": "binary_judges",
+      "criteria": ["mechanism_identification", "operator_reconciliation"],
+      "pass_rule": "all_must_pass"
+    }
+  },
+
+  "authoring_notes_not_visible_to_agent": {
+    "operator_claim_status": "deliberately_wrong",
+    "operator_claim_error": "Operator says Maya is in data-team and they checked it has access. True facts: Maya is a direct member of data-team-ml (nested subgroup), not data-team. The grant is on data-team. Nested subgroups do not inherit access from parent groups by default.",
+    "correct_diagnosis_requires": [
+      "identify nested-subgroup non-inheritance as the mechanism",
+      "explicitly correct the operator by naming both data-team (where operator checked) and data-team-ml (where Maya actually sits)"
+    ]
+  }
+}

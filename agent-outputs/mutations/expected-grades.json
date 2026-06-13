@@ -1,0 +1,72 @@
+{
+  "_note": "Per-mutation expected grades. Author-labeled (Sid) intent for each grading dimension on each mutation. The retrofit's disagreement signal is ruler-grade vs this file: a disagreement is either a ruler bug or a mutation to drop as genuinely ambiguous (named in VALIDATION-NOTES §5).",
+  "_grading_dimensions": ["verdict", "root_cause", "criterion_1", "criterion_2"],
+  "_dimension_legend": {
+    "verdict": "exact-match against scenario.expected_answer.verdict ('resolve')",
+    "root_cause": "exact-match against scenario.expected_answer.root_cause ('nested_subgroup_inheritance_gap')",
+    "criterion_1": "binary judge — does the diagnosis identify nested-subgroup non-inheritance as the mechanism?",
+    "criterion_2": "binary judge — does the diagnosis name both data-team (operator-checked) AND data-team-ml (actual) in a corrective frame?"
+  },
+  "mutations": [
+    {
+      "file": "m01-good-paraphrase.json",
+      "axis": "1 — phrasing-preserving (good anchor reworded)",
+      "rationale": "Reworded good answer; mechanism still correct, both groups still named. Ruler should be invariant to paraphrasing of a correct answer (course 5.3.3 method 2).",
+      "expected": { "verdict": true, "root_cause": true, "criterion_1": true, "criterion_2": true }
+    },
+    {
+      "file": "m02-wrong-paraphrase.json",
+      "axis": "2 — phrasing-preserving (wrong anchor reworded)",
+      "rationale": "Reworded wrong answer; still picks 'propagation_lag', still blames timing, still doesn't correct operator. Ruler should be invariant to paraphrasing of a wrong answer.",
+      "expected": { "verdict": true, "root_cause": false, "criterion_1": false, "criterion_2": false }
+    },
+    {
+      "file": "m03-partial-mechanism-only.json",
+      "axis": "3 — partial: c1 passes, c2 fails (mechanism named, both groups not named)",
+      "rationale": "Identifies nested-subgroup non-inheritance correctly but doesn't name 'data-team' or 'data-team-ml' specifically; no operator correction. Isolates c2.",
+      "expected": { "verdict": true, "root_cause": true, "criterion_1": true, "criterion_2": false }
+    },
+    {
+      "file": "m04-partial-reconciliation-only.json",
+      "axis": "4 — partial: c2 passes, c1 fails (groups named correctively, wrong mechanism in text)",
+      "rationale": "Names both groups in a clean corrective frame ('Maya is actually a direct member of data-team-ml — not data-team') but blames a 'pending approval workflow' instead of nested-subgroup non-inheritance. The wrong mechanism is structurally compatible with the correction rather than contradicting it — the correction stands as a standalone factual fix, with the false mechanism layered on top (unlike a timing/sync framing, which would imply the operator's check was right and undo the correction). Label kept correct to keep root_cause frozen and surface label/text incoherence as a c1-only failure. Tests that the ruler grades label and text independently.",
+      "expected": { "verdict": true, "root_cause": true, "criterion_1": false, "criterion_2": true }
+    },
+    {
+      "file": "m05-vague-permissions.json",
+      "axis": "5 — adjacent-mechanism (vague permissions language)",
+      "rationale": "Generic 'permission issue' framing, no nested-subgroup language, no operator correction with both groups named. Label kept correct to isolate the failure to c1+c2 — tests that the ruler isn't fooled by a correct label when the text is wrong.",
+      "expected": { "verdict": true, "root_cause": true, "criterion_1": false, "criterion_2": false }
+    },
+    {
+      "file": "m06-verdict-flip.json",
+      "axis": "6 — verdict flip",
+      "rationale": "Diagnosis text and root_cause label match the good anchor; only verdict is flipped to 'escalate'. Owner field populated (required for escalate shape). Isolates the verdict exact-match check.",
+      "expected": { "verdict": false, "root_cause": true, "criterion_1": true, "criterion_2": true }
+    },
+    {
+      "file": "m07-different-wrong-label.json",
+      "axis": "7 — wrong-but-different canonical-shaped label",
+      "rationale": "Picks 'missing_direct_grant' instead of 'propagation_lag'. Diagnosis blames a different mechanism, doesn't correct operator. Same expected-grade shape as m02 — exercises that the ruler catches a wrong label regardless of which wrong label is chosen.",
+      "expected": { "verdict": true, "root_cause": false, "criterion_1": false, "criterion_2": false }
+    },
+    {
+      "file": "m08-minimal-good.json",
+      "axis": "1 — phrasing-preserving (good anchor, minimal form)",
+      "rationale": "Good answer compressed to the bare minimum that still satisfies both criteria. Tests that the ruler doesn't require flowery prose to pass.",
+      "expected": { "verdict": true, "root_cause": true, "criterion_1": true, "criterion_2": true }
+    },
+    {
+      "file": "m09-verbose-good.json",
+      "axis": "1 — phrasing-preserving (good anchor, verbose form)",
+      "rationale": "Good answer over-elaborated with correct context throughout. Tests that the ruler doesn't penalize verbosity.",
+      "expected": { "verdict": true, "root_cause": true, "criterion_1": true, "criterion_2": true }
+    },
+    {
+      "file": "m10-rejected-hypothesis.json",
+      "axis": "judge-edge — mentioned-but-rejected mechanism (disagreement candidate)",
+      "rationale": "Diagnosis mentions nested-subgroup inheritance as a hypothesis but rejects it in favor of propagation_lag. Tests the judge's 'CLEARLY AND SPECIFICALLY meets the criterion' bar (judges.ts JUDGE_SYSTEM_PROMPT). Intent: c1 should fail because the right mechanism is rejected, not identified. Pre-flagged as the most likely disagreement candidate; first-run result confirmed intent — the judge correctly read the rejection as 'mechanism not identified.'",
+      "expected": { "verdict": true, "root_cause": false, "criterion_1": false, "criterion_2": false }
+    }
+  ]
+}

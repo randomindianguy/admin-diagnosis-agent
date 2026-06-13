@@ -363,3 +363,44 @@ These remain non-negotiable through chunk 2's build:
 - **Disjointness.** Each chunk tests one mechanism at full strength; every other mechanism at zero. Don't bake chunk-3 or chunk-5 work into chunk-2 implementation.
 - **Course deviations acknowledged.** If a chunk-2 build decision contradicts an AIPM-course-taught principle, the entry must name the deviation explicitly and justify it. Don't sneak past course principles silently.
 - **MVPerf framing.** Build the minimum needed to demonstrate the thesis for this chunk's mechanism. Refuse to broaden scope. Expand seed by seed.
+
+---
+
+## Q18 — Late-build catch: `owner` field tightened to canonical enum (parity with Q11)
+
+**Surfaced by:** post-retrofit code review. The SID-42 and SID-43 retrofits worked the discipline of "structural enforcement of facts/judgment boundaries" through chunk 2's surface area. That re-walk made a long-tolerated asymmetry visible: Q11 closed `root_cause` to the `CANONICAL_ROOT_CAUSES` enum so the model cannot invent a label, but Q4's `owner: string` was left open — the model could fabricate any team name and the system would route there silently. Same failure-mode class; only one half closed.
+
+**Question:** how should `owner` be constrained, given that (a) the model picks it when calling the `escalate` tool, and (b) the system independently sets `FALLBACK_ESCALATION_OWNER` ("human-reviewer") when the gate overrides a model-resolve into an escalate (Q12)?
+
+**Options considered:**
+
+- **A. Defer to chunk 6.** Q4's forward-link already anticipated chunk 6's contested-routing refactor (`routing: {state, owners, recommended}`). Wait for that work and close the asymmetry there.
+- **B. Single closed enum including the fallback.** Add `human-reviewer` to the canonical list; remove the separate `FALLBACK_ESCALATION_OWNER` distinction. One source of truth.
+- **C. Two structurally distinct sources, both closed.** `CANONICAL_ESCALATION_OWNERS` (closed enum, model-facing — wired into the escalate tool's `input_schema`) and `FALLBACK_ESCALATION_OWNER` (system-only constant, never in the model's tool schema, used only on gate override). The escalate variant of `DiagnosisOutput` types `owner` as the union of the two.
+
+**Decision:** C.
+
+**Reasoning:** A leaves the asymmetry visible in the codebase for chunks 3, 4, 5 — exactly the kind of "we'll get to it" gap a thoughtful reviewer would ask about, and the disciplinary cost of carrying that gap forward exceeds the 15 minutes the fix takes. B over-merges semantically distinct concerns: `human-reviewer` means "the system overrode a confident resolve and we don't trust either the diagnosis or the routing" — that meaning is specifically NOT something the model should ever pick when it decides to escalate. Collapsing the two would let the model emit `human-reviewer` on its own escalations, which loses the override-vs-self-escalate signal Q12 is built on. C preserves Q12's semantics intact while bringing `owner` to parity with Q11's `root_cause` discipline: the model is structurally constrained (input_schema enum, type-narrow guard in `parseToolCall`); the system retains its independent fallback path.
+
+**The four canonical owners (chunk-2 starting set):**
+
+| Owner | Authority class |
+|---|---|
+| `identity-team` | User accounts, group memberships, SSO/IdP, provisioning. Seed 1's nested-subgroup case routes here if escalated. |
+| `resource-owner` | The specific resource's owner (e.g., Drive folder owner). Routes here when access depends on the resource owner explicitly granting it. |
+| `security-team` | Security policy, DLP, conditional access, compliance gates. Routes here when a security policy is blocking, not a permissions misconfiguration. |
+| `support-team` | Generic IT support. The within-enum catchment for issues that don't cleanly fit any specialist authority class. |
+
+Plus `FALLBACK_ESCALATION_OWNER = "human-reviewer"` — system-only.
+
+**Named asymmetry-with-Q11 that survives this fix (and why):** Q11's root_cause enum has no within-enum catchment — when no label fits, the model MUST call `escalate` (a different tool). Q18's owner enum does have one (`support-team`). The structural reason: `escalate` is itself the fallback verdict; the model has already decided not to resolve, and the diagnosis still needs a routing destination even when no specialist owner is the right answer. There is nowhere "further" to escalate to. The within-enum catchment is the right shape for owner specifically because of escalate's terminal position in the verdict tree; not the right shape for root_cause because resolve is not terminal — escalate exists as the structural fallback path.
+
+**Forward link to chunk 6 (Q4's existing link, unchanged in shape, updated in context):**
+
+Chunk 6's contested-routing work (Seed 4) was always going to refactor `owner: <enum>` into the richer `routing: { state: "clear" | "contested", owners: CanonicalEscalationOwner[], recommended: CanonicalEscalationOwner }` shape Q4 forward-linked. Q18 doesn't conflict with that plan — it just promotes the field from `string` to `CanonicalEscalationOwner` so the refactor is type-aligned from day one rather than starting from a wider type. Chunk 6 may also extend `CANONICAL_ESCALATION_OWNERS` itself (add owners; the four-owner starting set is not pre-committed to be complete for all seeds).
+
+**Cross-chunk discipline acknowledgement.** Q18 modifies fenced chunk-2 code (`lib/escalation.ts`, `lib/schema.ts`, `lib/diagnosis.ts`), which is non-trivial — the fence existed to prevent silent Q1–Q17 drift. This is not silent drift: Q18 is a new design decision, with reasoning, that explicitly amends Q4 (`owner` type) and Q11 (extends the closed-enum discipline). The disciplined path for fence-modification is a new Q entry, logged before code; that is this entry. Same shape as the SID-42 retrofit's Q8 entry — surfaced flaw, structural reason, named fix, future invalidation conditions.
+
+**What would change this decision:** Chunk 6's contested-routing work landing first, before Q18's code change ships — in which case Q18's enum + types would be authored as part of chunk 6's design rather than as a chunk-2 amendment. Sequence is the only thing that flips; the substance is the same either way.
+
+**Re-validation needed:** none for chunk-2's existing demo flow. The model's chunk-2 behavior on Seed 1 (resolve → no owner emitted; gate override → fallback to "human-reviewer") is structurally unchanged. On the off-domain "what's the weather" case (CHUNK2-DESIGN-DECISIONS Q12, where the model previously self-supplied "support-team" against an open string), the model now must pick from the four-enum set; "support-team" remains in the enum, so the same routing decision is still available. If the chunk-2 demo is re-run after Q18 ships and the model picks a different owner from the enum on the off-domain case, that's informative — name it in the next VALIDATION-NOTES update, don't paper over it.

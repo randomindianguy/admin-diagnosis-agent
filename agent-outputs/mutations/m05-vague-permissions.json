@@ -1,0 +1,8 @@
+{
+  "output_id": "m05-vague-permissions",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "nested_subgroup_inheritance_gap",
+  "owner": null,
+  "diagnosis_text": "Maya is hitting a permission issue on 'Q3 Revenue Models'. Her group membership isn't lining up with the access grant on the file. Have IT verify her group setup and reapply the grant if needed — she should be able to open the folder after that."
+}

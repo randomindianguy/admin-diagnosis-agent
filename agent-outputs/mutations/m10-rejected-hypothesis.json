@@ -1,0 +1,8 @@
+{
+  "output_id": "m10-rejected-hypothesis",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "propagation_lag",
+  "owner": null,
+  "diagnosis_text": "One possibility here is a nested-subgroup inheritance gap — where Maya might be in a subgroup that doesn't inherit access — but on a closer look that's not what this is. data-team has the grant and Maya is associated with the data team, so the more likely explanation is a propagation lag on a recent membership update. The permission should reach her shortly; if not, trigger a manual re-sync."
+}

@@ -1,0 +1,8 @@
+{
+  "output_id": "m07-different-wrong-label",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "missing_direct_grant",
+  "owner": null,
+  "diagnosis_text": "There is no direct grant on the 'Q3 Revenue Models' folder for Maya as an individual user. The grant is set at the group level, and that's why she's blocked. Add a viewer-level grant on Maya directly and she'll regain access."
+}

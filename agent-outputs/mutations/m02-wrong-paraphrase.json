@@ -1,0 +1,8 @@
+{
+  "output_id": "m02-wrong-paraphrase",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "propagation_lag",
+  "owner": null,
+  "diagnosis_text": "Maya is already in data-team and that group has access, so the underlying permission is fine. What you're seeing is a sync lag — group membership changes can take a while to propagate through the permission caches. Ask her to log out and back in, or trigger a re-sync from the admin panel."
+}

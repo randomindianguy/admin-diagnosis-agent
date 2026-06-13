@@ -1,0 +1,8 @@
+{
+  "output_id": "m01-good-paraphrase",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "nested_subgroup_inheritance_gap",
+  "owner": null,
+  "diagnosis_text": "The access grant on 'Q3 Revenue Models' is held by data-team — but Maya isn't a direct member of data-team. Her actual membership is in data-team-ml, which sits as a subgroup under data-team. Access grants on a parent group do not propagate downward to subgroups by default, which is why she can't open the folder even though you correctly verified data-team has access. Two fixes: grant access on data-team-ml directly, or add Maya to data-team as a direct member."
+}

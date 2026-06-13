@@ -1,0 +1,8 @@
+{
+  "output_id": "m09-verbose-good",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "nested_subgroup_inheritance_gap",
+  "owner": null,
+  "diagnosis_text": "Walking through what's actually happening here: the 'Q3 Revenue Models' folder has a viewer-level grant attached to data-team, which is what you verified — that part of your check is correct. However, the membership picture for Maya is different from what the symptom describes. She is a direct member of data-team-ml only, and data-team-ml is configured as a subgroup nested under data-team. In this identity model, an access grant placed on a parent group does not flow down to any of its nested subgroups by default; subgroups must be granted access independently. So even though data-team has access to the folder, data-team-ml does not, and Maya — being a member only of data-team-ml — cannot open it. Two equivalent fixes: either attach a viewer grant on data-team-ml itself, or change Maya's membership so she sits in data-team directly rather than the subgroup."
+}

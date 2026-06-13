@@ -3,7 +3,16 @@
 // exported shape — the chunk-1 grader (step 12). Drift here breaks everything
 // downstream. Shape is locked by CHUNK2-DESIGN-DECISIONS Q4; do not widen for
 // hypothetical future seeds (refuse_out_of_scope is chunk 3, etc.).
+//
+// Q18 update: the escalate variant's `owner` field is no longer an open string.
+// It is the union of CANONICAL_ESCALATION_OWNERS (model-pickable) and
+// FALLBACK_ESCALATION_OWNER (system-only, set on gate override). Parallel to
+// Q11's closed-enum treatment of root_cause.
 import type { CanonicalRootCause } from "./canonical-labels";
+import type {
+  CanonicalEscalationOwner,
+  FallbackEscalationOwner,
+} from "./escalation";
 
 export type RetrievedEvidence = {
   source: string; // e.g., "nested-group-inheritance.md"
@@ -27,7 +36,7 @@ export type DiagnosisOutput =
     }
   | {
       verdict: "escalate";
-      owner: string;
+      owner: CanonicalEscalationOwner | FallbackEscalationOwner;
       diagnosis_text: string;
       retrieved_evidence: RetrievedEvidence[];
       gate_signals: GateSignals;

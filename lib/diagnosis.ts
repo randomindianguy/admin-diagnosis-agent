@@ -16,15 +16,20 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { CANONICAL_ROOT_CAUSES } from "./canonical-labels";
 import type { CanonicalRootCause } from "./canonical-labels";
+import { CANONICAL_ESCALATION_OWNERS } from "./escalation";
+import type { CanonicalEscalationOwner } from "./escalation";
 import type { RetrievalResult, StatusFacts } from "./retrieval";
 
 const DIAGNOSIS_MODEL = "claude-sonnet-4-6";
 
 // The model's output — the judgment half of DiagnosisOutput. The route/gate
 // merge this with the code-owned fact fields to build the full contract object.
+// Q18: owner narrows from open string to the canonical model-facing enum;
+// FALLBACK_ESCALATION_OWNER ("human-reviewer") is a system-only value that
+// appears in the assembled DiagnosisOutput, not here — the model never picks it.
 export type DiagnosisJudgment =
   | { verdict: "resolve"; root_cause: CanonicalRootCause; diagnosis_text: string }
-  | { verdict: "escalate"; owner: string; diagnosis_text: string };
+  | { verdict: "escalate"; owner: CanonicalEscalationOwner; diagnosis_text: string };
 
 // --- The approved tool-schema contract (Q11) ---------------------------------
 
@@ -58,13 +63,16 @@ const ESCALATE_TOOL: Anthropic.Tool = {
   name: "escalate",
   description:
     "Escalate when no canonical root_cause matches the evidence, or when the evidence is insufficient to " +
-    "diagnose confidently. Routes the issue to a human owner.",
+    "diagnose confidently. Routes the issue to one of the canonical authority classes.",
   input_schema: {
     type: "object",
     properties: {
       owner: {
         type: "string",
-        description: "The team or role the issue should be routed to.",
+        enum: [...CANONICAL_ESCALATION_OWNERS],
+        description:
+          "The canonical authority class to route the issue to. Must be exactly one of the enumerated owners — " +
+          "never invent a new one. Use `support-team` as the within-enum catchment when no specialist class clearly fits.",
       },
       diagnosis_text: {
         type: "string",
@@ -165,6 +173,13 @@ function isCanonical(value: unknown): value is CanonicalRootCause {
   );
 }
 
+function isCanonicalOwner(value: unknown): value is CanonicalEscalationOwner {
+  return (
+    typeof value === "string" &&
+    (CANONICAL_ESCALATION_OWNERS as readonly string[]).includes(value)
+  );
+}
+
 function parseToolCall(
   name: string,
   input: unknown,
@@ -186,8 +201,10 @@ function parseToolCall(
     };
   }
   if (name === "escalate") {
-    if (typeof obj.owner !== "string" || obj.owner.length === 0) {
-      throw new Error("escalate tool returned an empty owner.");
+    if (!isCanonicalOwner(obj.owner)) {
+      throw new Error(
+        `escalate tool returned a non-canonical owner: ${JSON.stringify(obj.owner)}`,
+      );
     }
     if (typeof obj.diagnosis_text !== "string" || obj.diagnosis_text.length === 0) {
       throw new Error("escalate tool returned an empty diagnosis_text.");

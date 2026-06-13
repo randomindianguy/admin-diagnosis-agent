@@ -1,0 +1,8 @@
+{
+  "output_id": "m03-partial-mechanism-only",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "nested_subgroup_inheritance_gap",
+  "owner": null,
+  "diagnosis_text": "This is a nested-group inheritance gap. The user's actual group is a subgroup nested under the group that holds the grant, and subgroups do not inherit access from their parent by default. The fix is to add the grant directly on the subgroup, or move the user up to the parent group as a direct member."
+}

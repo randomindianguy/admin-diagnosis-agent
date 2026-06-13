@@ -1,0 +1,61 @@
+{
+  "_note": "SID-43 retrofit: ten paraphrases of the Seed-1 anchor symptom, each preserving the same underlying problem (Maya in data-team-ml can't open the Q3 Revenue Models folder grant-attached to data-team). The threshold (0.21) was calibrated to ONE exact phrasing (the anchor below). This manifest's mutations measure how the threshold holds against realistic surface variation operators might actually type.",
+  "_measurement_only": "RQ3 option A locked: no pass/fail bar. The retrofit succeeds by honestly producing the score distribution and the false-escalate rate at the current threshold. The structural fix (HyDE query transformation) is chunk-7's job; this measurement is the baseline against which chunk-7 will be measured.",
+  "anchor_symptom": "Maya on the data team can't open the 'Q3 Revenue Models' folder in Drive. She's in the data-team group, which I checked has access. Can you look?",
+  "anchor_score_measured": 0.3875,
+  "anchor_measured_on": "2026-06-12 (CHUNK2-DESIGN-DECISIONS Q13)",
+  "threshold": 0.21,
+  "threshold_derivation": "Midpoint of in-domain (0.3875) and off-domain ('what's the weather' → 0.0236) measured against voyage-4-lite on 2026-06-12 (CHUNK2-DESIGN-DECISIONS Q13).",
+  "mutations": [
+    {
+      "file": "m01-casual-typo.json",
+      "axis": "1 — pure symptom, casual + minor typos (Slack/chat style)",
+      "rationale": "Lowercase, missing punctuation, contractions ('cant', 'u'). Tests whether the threshold survives casual ops-channel typing, which is overwhelmingly common for admin tickets."
+    },
+    {
+      "file": "m02-formal.json",
+      "axis": "2 — pure symptom, formal (ticket-system style)",
+      "rationale": "Full punctuation, proper capitalization, hedged-formal tone. Tests whether vocabulary stays close enough to the runbook when phrasing is more buttoned-up."
+    },
+    {
+      "file": "m03-anonymized.json",
+      "axis": "3 — anonymized (no specific user name)",
+      "rationale": "User name stripped ('A data-team member'). Realistic for ticket systems that anonymize before routing. Tests sensitivity to named-entity removal."
+    },
+    {
+      "file": "m04-terse-fragment.json",
+      "axis": "4 — terse fragment (machine-or-stub-generated)",
+      "rationale": "Telegraphic fragments, minimal grammar. Tests the threshold against the lowest-information realistic input — sometimes ticket subjects look like this even when the body has more context."
+    },
+    {
+      "file": "m05-partial-mechanism.json",
+      "axis": "5 — partial-mechanism language ('permissions')",
+      "rationale": "Uses 'permissions' instead of 'access' — a step closer to the runbook's vocabulary without crossing into mechanism language ('inheritance', 'subgroup'). Tests whether partial vocabulary alignment moves the score."
+    },
+    {
+      "file": "m06-verbose-context.json",
+      "axis": "6 — verbose, with reasoning + context",
+      "rationale": "Long, narrative, includes operator's reasoning ('we've already double-checked'). Tests whether additional context dilutes or boosts the score — verbose inputs add unrelated tokens that could either help or hurt cosine similarity."
+    },
+    {
+      "file": "m07-third-person-ticket.json",
+      "axis": "7 — third-person reporting (escalated from another operator)",
+      "rationale": "'Ticket from Maya's manager' framing. Realistic for tiered support workflows. Tests whether report-shaped wrapping affects the score."
+    },
+    {
+      "file": "m08-blocked-framing.json",
+      "axis": "8 — different verb framing ('blocked' instead of 'can't open')",
+      "rationale": "Word-choice variation on the core verb. Tests sensitivity to surface-level verb substitution on the same semantic action."
+    },
+    {
+      "file": "m09-first-person.json",
+      "axis": "9 — first-person (end-user, not operator)",
+      "rationale": "'I can't get into...' — the end user filing their own ticket. Tests whether the threshold handles the difference between operator-reported and user-self-reported framings."
+    },
+    {
+      "file": "m10-heavy-paraphrase.json",
+      "axis": "10 — heavy paraphrase, low surface overlap",
+      "rationale": "Almost no shared vocabulary with the anchor: 'analyst' instead of Maya, 'quarterly finance folder' instead of 'Q3 Revenue Models', 'team group' instead of 'data-team', 'view the file' instead of 'open the folder'. Tests the threshold's worst realistic case — semantically identical, lexically distant. Likely the lowest score in the set."
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "output_id": "m04-partial-reconciliation-only",
+  "scenario_id": "seed-1",
+  "verdict": "resolve",
+  "root_cause": "nested_subgroup_inheritance_gap",
+  "owner": null,
+  "diagnosis_text": "You checked data-team, but Maya is actually a direct member of data-team-ml — not data-team. Her access request to view the 'Q3 Revenue Models' folder is currently pending approval from data-team's group owner. Once that cross-group access request gets approved, the permission will be granted and she'll be able to open the folder."
+}

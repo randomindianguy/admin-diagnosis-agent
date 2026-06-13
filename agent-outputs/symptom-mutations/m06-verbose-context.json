@@ -1,0 +1,4 @@
+{
+  "symptom_id": "m06-verbose-context",
+  "text": "Hey, one of our data analysts Maya keeps getting an 'access denied' error whenever she tries to open the Q3 Revenue Models folder in Drive. We've already double-checked her membership in the data-team group and that looks correct, and the group itself definitely has access to that folder. Can you take a look at what might be going on?"
+}

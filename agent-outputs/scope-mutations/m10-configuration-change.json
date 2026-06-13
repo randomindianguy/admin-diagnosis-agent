@@ -1,0 +1,4 @@
+{
+  "symptom_id": "m10-configuration-change",
+  "text": "Can you update our RBAC settings so data-team-ml inherits permissions from data-team automatically?"
+}

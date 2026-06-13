@@ -49,7 +49,8 @@ export const CONSISTENCY_TEMPERATURE = 0.7; // starting point, measure-then-lock
 // by its root_cause; an escalate by the verdict alone. diagnosis_text varies
 // naturally and never counts toward agreement.
 function agreementKey(j: DiagnosisJudgment): string {
-  return j.verdict === "resolve" ? `resolve:${j.root_cause}` : "escalate";
+  if (j.verdict === "resolve") return `resolve:${j.root_cause}`;
+  return j.verdict; // "escalate" | "refuse_out_of_scope" — each verdict its own key
 }
 
 // Run the diagnosis N times in parallel at temperature (latency ≈ one call).
@@ -111,7 +112,10 @@ function stripScores(runbook: RetrievalResult["runbook"]): RetrievedEvidence[] {
 
 // Combine the primary judgment with both signals to produce the final output.
 export function applyGate(params: {
-  primary: DiagnosisJudgment;
+  // Refuse skips the gate (short-circuited upstream in runGatedDiagnosis), so
+  // applyGate only ever sees a resolve or escalate primary — the gate is the
+  // resolve-confidence mechanic, and a refuse has no resolve to verify.
+  primary: Exclude<DiagnosisJudgment, { verdict: "refuse_out_of_scope" }>;
   sufficiency: GateSignal;
   consistency: GateSignal;
   evidence: RetrievedEvidence[];
@@ -168,9 +172,18 @@ export function applyGate(params: {
 export async function runGatedDiagnosis(
   symptom: string,
   context: RetrievalResult,
-): Promise<DiagnosisOutput> {
+): Promise<DiagnosisOutput | { verdict: "refuse_out_of_scope" }> {
   const samples = await sampleDiagnoses(symptom, context);
   const { signal: consistency, primary } = evaluateConsistency(samples);
+
+  // Q3b α (chunk 3): refuse short-circuits the gate. The gate verifies a resolve;
+  // a refuse has nothing to verify. Return the judgment as-is, gate_signals omitted.
+  // The schema-level DiagnosisOutput widening and the refuse UI treatment are
+  // step-4 work — this keeps chunk-2 resolve/escalate behavior untouched.
+  if (primary.verdict === "refuse_out_of_scope") {
+    return { verdict: "refuse_out_of_scope" };
+  }
+
   const sufficiency = evaluateSufficiency(context.topScore);
   return applyGate({
     primary,

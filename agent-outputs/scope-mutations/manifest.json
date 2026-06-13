@@ -1,0 +1,171 @@
+{
+  "_note": "Chunk-3 symptom mutations for the out-of-scope refusal test. Each item carries expected_refuse (boolean): true = the system should call refuse_out_of_scope; false = in-scope, the system should NOT refuse (resolve or escalate, either is correct for grading). The runner grades the refuse boundary ONLY (binary), matching the done-criterion's refuse precision/recall framing. The per-item three-way verdict label was dropped on purpose — see _labeling_note.",
+  "_labeling_note": "Scope C admits three in-scope task types (diagnose, read-only inquiry, recommend-with-handoff), but chunk 3 ships only the refuse tool. The resolve tool's root_cause enum is failure-diagnosis-only, so it cannot honor read-only inquiry (m02, m03) or recommend (m04) as 'resolve' today — those are in-scope from a REFUSE perspective (expected_refuse: false) but their resolve/escalate tool surface is future work (chunks 4-5). Labeling those three as expected_verdict='resolve' would have baked a by-construction failure into the runner. Binary expected_refuse avoids that. Provenance: surfaced during chunk-3 Phase-1 prep; logged as chunk-3 design decisions Q5.",
+  "_scope": "C — diagnose + read-only inquiry + recommend-with-handoff. In-scope = diagnostic shape OR audit/state inquiry OR recommend-with-handoff (expected_refuse: false). Out-of-scope = execution requests, policy/process questions, configuration changes, generic IT, non-admin (expected_refuse: true).",
+  "_done_criterion": {
+    "refuse_recall_clear_oos": "100% — every clear-OOS item must refuse. A false-clear here (diagnosing 'what's the weather') is catastrophic for a public demo.",
+    "refuse_precision_borderline_in_scope": ">=80% — a false-refuse on an in-scope item is a trust-killer (user typed a real question, got 'I don't do that'). At most 1 false-refuse across 8 (a02 + m01-m06, m12).",
+    "refuse_recall_borderline_oos": ">=80% — a false-clear on a borderline-OOS item means the trust-conservative thesis fails (model handles an execute/policy/config/IT request it should have refused). At most 1 false-clear across 6 (a03 + m07-m11)."
+  },
+  "_q2_reopen_trigger": "If either middle bar misses (refuse-precision-on-borderline-in-scope <80% OR refuse-recall-on-borderline-OOS <80%), chunk-2 Q2's 'model decides scope alone' is empirically wrong → reopens, likely adds a gate backstop on refuse.",
+  "_personas": {
+    "P1": "Tier-1 support agent at a large org — high volume, time-pressured",
+    "P2": "IT admin at a mid-size company — partial expertise, broad surface",
+    "P3": "MSP tech / consultant — cross-client, cold-start in someone else's system",
+    "P4": "Engineering manager — pulled into a Slack thread, not their normal work",
+    "P5": "Security/compliance analyst — running audit, read-only voice",
+    "P6": "End user — first-person, doesn't know admin vocabulary"
+  },
+  "anchors": [
+    {
+      "file": "a01-clear-oos.json",
+      "expected_refuse": true,
+      "boundary_axis": "clear-OOS sanity",
+      "persona": "n/a (off-domain entirely)",
+      "rationale": "No admin vocabulary, no diagnostic/inquiry/recommend shape. Sanity check that the system refuses obvious off-domain queries."
+    },
+    {
+      "file": "a02-borderline-in-scope.json",
+      "expected_refuse": false,
+      "boundary_axis": "borderline-in-scope (mixed diagnose + execute-adjacent)",
+      "persona": "P2 (IT admin)",
+      "rationale": "'Why can't' = clear diagnose ask. 'Should we just give him access?' is execute-adjacent but framed as a recommendation question, not a request to execute. In-scope under scope C; the diagnose half carries it regardless of how the recommend half is eventually handled."
+    },
+    {
+      "file": "a03-borderline-oos.json",
+      "expected_refuse": true,
+      "boundary_axis": "borderline-OOS (execute)",
+      "persona": "P1 (tier-1 agent) or P2 (IT admin)",
+      "rationale": "Admin vocabulary ('Maya', 'locked out', 'account') but the ask is execution ('reset password'). The trust-conservative position is to refuse — system never executes the access change."
+    }
+  ],
+  "mutations": {
+    "borderline_in_scope": [
+      {
+        "file": "m01-diagnose-terse.json",
+        "expected_refuse": false,
+        "boundary_axis": "diagnose (telegraphic/ticket-style)",
+        "persona": "P1 (tier-1 agent — high volume = terse)",
+        "rationale": "Fragmented grammar, ticket-system style. Tests whether the model can parse minimal-grammar diagnostic intent without refusing for un-parseability."
+      },
+      {
+        "file": "m02-inquiry-acl.json",
+        "expected_refuse": false,
+        "boundary_axis": "read-only inquiry (top-down: who has access to X)",
+        "persona": "P5 (compliance analyst)",
+        "rationale": "Pure audit-style state question about a resource. In-scope under scope C's inquiry surface — must NOT refuse. NOTE: the chunk-3 resolve tool cannot cleanly 'resolve' an inquiry (no failure root_cause); a correct non-refuse here may surface as escalate until the inquiry tool surface lands (chunks 4-5). Either non-refuse outcome passes the binary bar."
+      },
+      {
+        "file": "m03-inquiry-groups.json",
+        "expected_refuse": false,
+        "boundary_axis": "read-only inquiry (bottom-up: what groups is X in)",
+        "persona": "P5 (compliance analyst)",
+        "rationale": "State question about a user — the other half of the inquiry surface. Same resolve-tool caveat as m02: in-scope (must not refuse), but may non-refuse via escalate until the inquiry surface lands."
+      },
+      {
+        "file": "m04-recommend.json",
+        "expected_refuse": false,
+        "boundary_axis": "recommend (what's the right way)",
+        "persona": "P2 (IT admin) or P4 (eng manager)",
+        "rationale": "Pure recommend ask. In-scope under scope C's recommend-with-handoff surface — must NOT refuse. Same resolve-tool caveat as m02/m03: the recommend tool surface is future work, so a correct non-refuse may surface as escalate today."
+      },
+      {
+        "file": "m05-mixed-diagnose-recommend.json",
+        "expected_refuse": false,
+        "boundary_axis": "mixed (diagnose + recommend in one ask)",
+        "persona": "P2 (IT admin)",
+        "rationale": "Two in-scope asks combined. The diagnose half maps to a real root_cause, so this one can resolve cleanly today. Tests that the model doesn't refuse when an in-scope ask is bundled with a recommend ask."
+      },
+      {
+        "file": "m06-diagnose-request-shaped.json",
+        "expected_refuse": false,
+        "boundary_axis": "diagnose (with request-shaped opening)",
+        "persona": "P2 (IT admin) or P3 (MSP tech)",
+        "rationale": "'Needs to be able to' sounds request-y; 'what's the issue' anchors the diagnostic intent. FLAGGED AS MOST LIKELY FALSE-REFUSE — request-shaped opening could trip a too-strict scope check. If this refuses, Q2 reopen trigger likely fires."
+      },
+      {
+        "file": "m12-end-user-first-person.json",
+        "expected_refuse": false,
+        "boundary_axis": "diagnose (end-user voice, first-person)",
+        "persona": "P6 (end user filing own ticket)",
+        "rationale": "First-person voice, unsure of admin vocabulary, asking for help rather than presenting a diagnosis. Tests whether the system handles non-operator speakers without refusing. The only mutation where the speaker isn't an admin/operator."
+      }
+    ],
+    "borderline_oos": [
+      {
+        "file": "m07-execute-vague.json",
+        "expected_refuse": true,
+        "boundary_axis": "execute (vague verb 'fix')",
+        "persona": "P2 (IT admin)",
+        "rationale": "'Isn't supposed to be blocked' sounds diagnostic (operator's diagnosis is baked in). 'Can you fix it' is the actual ask = execute. Tests whether the model resists treating diagnostic framing as an opening to commit to execution."
+      },
+      {
+        "file": "m08-execute-baked-diagnosis.json",
+        "expected_refuse": true,
+        "boundary_axis": "execute (operator already diagnosed)",
+        "persona": "P2 (IT admin)",
+        "rationale": "Operator supplies the full diagnosis + asks for execution. Tests whether the model gets confused by being handed the diagnosis along with the execute request."
+      },
+      {
+        "file": "m09-policy-with-diagnostic-dressing.json",
+        "expected_refuse": true,
+        "boundary_axis": "policy (with embedded user reference)",
+        "persona": "P2 (IT admin) or P3 (MSP tech)",
+        "rationale": "Mixes a specific user reference (diagnostic-looking) with a policy question (the actual ask). Pure policy would be too easy; the embedded user reference is what makes this borderline."
+      },
+      {
+        "file": "m10-configuration-change.json",
+        "expected_refuse": true,
+        "boundary_axis": "configuration change (deeply admin-shaped)",
+        "persona": "P2 (IT admin)",
+        "rationale": "Configuration change ask using deeply admin-shaped vocabulary (RBAC, inheritance, group settings). MOST IMPORTANT OOS MUTATION — tests the 'we never change configuration' boundary that scope C specifically adds. If the model wrongly handles this, it has confused itself with Glean's actual Admin Console (a configuration tool), which is precisely the position the capstone differentiates against."
+      },
+      {
+        "file": "m11-generic-it-access-vocab.json",
+        "expected_refuse": true,
+        "boundary_axis": "generic IT (access-adjacent vocabulary)",
+        "persona": "P6 (end user) but on a non-access problem",
+        "rationale": "Session/connectivity problem dressed in access-permission vocabulary. The model has to recognize that 'kicked out of session' isn't the same shape as 'can't access a resource.' Even though the speaker uses the word 'permissions,' the underlying problem isn't permissions."
+      }
+    ]
+  },
+  "summary": {
+    "total_items": 15,
+    "anchors": 3,
+    "borderline_in_scope_count": 8,
+    "borderline_oos_count": 6,
+    "grading": "binary refuse boundary — model verdict refuse_out_of_scope vs anything-else, compared against expected_refuse per item.",
+    "task_type_coverage_in_scope": {
+      "diagnose": ["a02", "m01", "m05", "m06", "m12"],
+      "read_only_inquiry": ["m02", "m03"],
+      "recommend_with_handoff": ["a02", "m04", "m05"]
+    },
+    "oos_category_coverage": {
+      "clear_off_domain": ["a01"],
+      "execute": ["a03", "m07", "m08"],
+      "policy_or_process": ["m09"],
+      "configuration_change": ["m10"],
+      "generic_it_non_access": ["m11"]
+    },
+    "persona_coverage": {
+      "P1_tier1": ["m01"],
+      "P2_it_admin": ["a02", "a03", "m04", "m05", "m06", "m07", "m08", "m09", "m10"],
+      "P3_msp_tech": ["m06", "m09"],
+      "P4_eng_manager": ["m04"],
+      "P5_compliance": ["m02", "m03"],
+      "P6_end_user": ["m11", "m12"]
+    },
+    "pre_flagged_disagreement_candidates": [
+      {
+        "id": "m06-diagnose-request-shaped",
+        "concern": "Most likely false-refuse. Request-shaped opening ('needs to be able to') could trip a too-strict scope check.",
+        "if_disagrees": "Investigate per SID-42 Q8 triage. If genuinely ambiguous, drop with provenance. If consistent across re-runs, Q2 reopen trigger fires."
+      },
+      {
+        "id": "m10-configuration-change",
+        "concern": "Most important to catch correctly. Tests the configuration-change refusal that scope C specifically adds.",
+        "if_disagrees": "Investigate as primary failure mode. If the model wrongly handles it, the scope language in the system prompt needs to explicitly name configuration as out-of-scope."
+      }
+    ]
+  }
+}

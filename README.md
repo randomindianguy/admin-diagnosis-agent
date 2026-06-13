@@ -1,14 +1,10 @@
 # Admin Diagnosis Agent
 
-A confidence-gated agentic system that diagnoses enterprise admin issues — and knows when not to act.
+A diagnosis system built around one principle: AI products should refuse to confidently answer wrong.
 
-## The thesis
+Most AI products fail in the same place — they generate plausible-sounding answers when they should escalate, leaving users with confidently-wrong outputs that look right until they don't. This system is structured so that any weakness in a confidence signal forces escalation rather than action. The architecture refuses silent failure at every layer — retrieval, diagnosis, and the gate.
 
-Most AI products fail in the same place: they confidently produce a wrong answer when they should have escalated. The gap isn't retrieval, and it isn't generation — it's the triage decision in the middle. Can I act on this, or should I hand it to a human with enough context that they can fix it?
-
-This system is that triage layer for an enterprise admin's job: an operator describes a symptom ("user can't access folder X"), and the system either resolves with a verified fix or escalates with the diagnosis-so-far + the ambiguous signal + routing rationale — never a confidently wrong answer that looks plausible.
-
-The architecture is built around confidence signals; if any is weak, the system escalates rather than acts. The whole stack — retrieval, the diagnosis call, the gate, the eval harness — is designed to refuse silent failure at every layer.
+What's distinctive isn't the AI; it's the discipline behind it. The evaluation harness was built *before* any system code existed — a correct output and a confidently-wrong output, hand-crafted, then validated that the grader caught the wrong one for the right reasons. Only then was the system built. 17 design decisions across the build are logged in real-time provenance: options considered, decision made, reasoning, and what would change it.
 
 ## Architecture
 

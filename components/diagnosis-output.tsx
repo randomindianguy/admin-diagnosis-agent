@@ -47,7 +47,10 @@ export function DiagnosisOutput({ output }: { output: DiagnosisOutput }) {
             ))}
           </div>
           <div className="flex flex-col gap-sm">
-            <h2 className="text-text-secondary">Gate signals</h2>
+            <h2 className="text-text-secondary">Confidence checks</h2>
+            <p className="text-text-secondary">
+              Both must pass to resolve. Either failing forces escalation.
+            </p>
             <ul className="flex flex-col gap-xs">
               <SignalRow
                 label="Evidence sufficiency"

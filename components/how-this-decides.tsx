@@ -8,14 +8,19 @@ export function HowThisDecides() {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex flex-col gap-sm">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="self-start text-body text-brand-primary"
-        aria-expanded={open}
-      >
-        {open ? "Hide how this decides" : "How this decides"}
-      </button>
+      <div className="flex flex-wrap items-baseline gap-sm">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="text-body text-brand-primary"
+          aria-expanded={open}
+        >
+          {open ? "Hide how this decides" : "How this decides"}
+        </button>
+        <span className="text-body text-text-secondary">
+          confidence-gated, eval-first, refuses to confidently answer wrong
+        </span>
+      </div>
       {open && (
         <p className="text-body text-text-secondary">
           {/* AUTHOR-OWNED DRAFT — rewrite. */}

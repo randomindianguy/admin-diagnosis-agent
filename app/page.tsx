@@ -34,12 +34,13 @@ export default function Home() {
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-xl px-md py-2xl">
       <header className="flex flex-col gap-sm">
         <h1 className="text-h1Mobile leading-headingTight tracking-heading">
-          Access diagnosis
+          Permission Diagnostics
         </h1>
-        {/* FRAMING LINE — author-owned draft; rewrite. */}
+        {/* Framing line (authored). */}
         <p className="text-text-secondary">
-          Describe an access problem in your workspace — who can&rsquo;t reach
-          what — and this diagnoses the cause and shows its reasoning.
+          Built around one principle: never confidently produce a wrong answer.
+          Diagnoses access issues, returns verified resolutions, or escalates
+          with the ambiguous signal flagged.
         </p>
       </header>
 

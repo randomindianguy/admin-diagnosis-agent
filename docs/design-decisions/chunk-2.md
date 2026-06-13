@@ -1,8 +1,8 @@
 # Design Decisions — Chunk 2 (Diagnosis System + V4 UI, Seed 1 end-to-end)
 
 Real-time provenance. One entry per design question, written when the
-decision was made. Same format inherited from chunk 1's
-`DESIGN-DECISIONS.md`: Question / Options considered / Decision /
+decision was made. Same format inherited from the chunk-1 design decisions:
+Question / Options considered / Decision /
 Reasoning / What would change this decision.
 
 Q1–Q6 are the design grill-me locks. Q7 onward will land as build-phase
@@ -403,4 +403,4 @@ Chunk 6's contested-routing work (Seed 4) was always going to refactor `owner: <
 
 **What would change this decision:** Chunk 6's contested-routing work landing first, before Q18's code change ships — in which case Q18's enum + types would be authored as part of chunk 6's design rather than as a chunk-2 amendment. Sequence is the only thing that flips; the substance is the same either way.
 
-**Re-validation needed:** none for chunk-2's existing demo flow. The model's chunk-2 behavior on Seed 1 (resolve → no owner emitted; gate override → fallback to "human-reviewer") is structurally unchanged. On the off-domain "what's the weather" case (CHUNK2-DESIGN-DECISIONS Q12, where the model previously self-supplied "support-team" against an open string), the model now must pick from the four-enum set; "support-team" remains in the enum, so the same routing decision is still available. If the chunk-2 demo is re-run after Q18 ships and the model picks a different owner from the enum on the off-domain case, that's informative — name it in the next VALIDATION-NOTES update, don't paper over it.
+**Re-validation needed:** none for chunk-2's existing demo flow. The model's chunk-2 behavior on Seed 1 (resolve → no owner emitted; gate override → fallback to "human-reviewer") is structurally unchanged. On the off-domain "what's the weather" case (chunk-2 design decisions Q12, where the model previously self-supplied "support-team" against an open string), the model now must pick from the four-enum set; "support-team" remains in the enum, so the same routing decision is still available. If the chunk-2 demo is re-run after Q18 ships and the model picks a different owner from the enum on the off-domain case, that's informative — name it in the next VALIDATION-NOTES update, don't paper over it.

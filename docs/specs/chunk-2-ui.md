@@ -2,7 +2,7 @@
 
 One-page spec produced by the UI grill-me preceding Phase 3 chunk 2.
 Chunk 2 builds against this; subsequent chunks (Seeds 5 → 2 → 3 → 4)
-extend it. See `UI-DESIGN-DECISIONS.md` for provenance.
+extend it. See the chunk-2 UI design decisions for provenance.
 
 ---
 

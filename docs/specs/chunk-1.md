@@ -5,7 +5,7 @@
 Two things, equally weighted:
 
 1. **A trustworthy eval ("the ruler")** for the admin-diagnosis system, proven to work in both directions on one hand-authored scenario (Seed 1), before any diagnosis-system code is written.
-2. **Two artifacts that show *why* the ruler is trustworthy** — `DESIGN-DECISIONS.md` (written during the build, in real time) and `VALIDATION-NOTES.md` (written when validation passes). These are not documentation. They are the chunk's evidence that the work happened the way it claims to have happened.
+2. **Two artifacts that show *why* the ruler is trustworthy** — the chunk-1 design decisions (written during the build, in real time) and `VALIDATION-NOTES.md` (written when validation passes). These are not documentation. They are the chunk's evidence that the work happened the way it claims to have happened.
 
 A working ruler without the artifacts is the same failure mode this product is designed to prevent: a confident output with no shown work. The artifacts close that loop recursively.
 
@@ -13,7 +13,7 @@ A working ruler without the artifacts is the same failure mode this product is d
 
 - Ruler **passes** the good agent output (handcrafted to meet all four grading dimensions)
 - Ruler **fails** the confidently-wrong agent output (handcrafted to fail root_cause + both binary judge calls; verdict passes by design)
-- `DESIGN-DECISIONS.md` exists with one entry per design question, **written at the time each decision was made** (not summarized after)
+- the chunk-1 design decisions exists with one entry per design question, **written at the time each decision was made** (not summarized after)
 - `VALIDATION-NOTES.md` exists, capturing what was tested + why each result is correct
 
 If any of these is missing, the chunk is not done.
@@ -31,7 +31,7 @@ This chunk delivers:
 - Two handcrafted agent outputs (good + confidently-wrong)
 - A minimal eval that grades the four fields below
 - Validation run that confirms the ruler behaves correctly on both outputs
-- `DESIGN-DECISIONS.md` — real-time provenance of the build's design choices
+- the chunk-1 design decisions — real-time provenance of the build's design choices
 - `VALIDATION-NOTES.md` — substantive reasoning for why the validation run is trustworthy
 
 It does **not** deliver:
@@ -70,7 +70,7 @@ A Node + TypeScript eval inside `eval/` that:
 
 **Plus two markdown artifacts at the chunk root:**
 
-- `DESIGN-DECISIONS.md` — built incrementally as design questions are answered (see "The artifact layer" below)
+- the chunk-1 design decisions — built incrementally as design questions are answered (see "The artifact layer" below)
 - `VALIDATION-NOTES.md` — written when validation passes (see "The artifact layer" below)
 
 Stack: same as the meeting-prep agent (Node + TypeScript + Anthropic SDK + tsx + dotenv).
@@ -114,7 +114,7 @@ The chunk's purpose is not just "the ruler works." It is "the ruler works, AND I
 
 Two artifacts. Both live at the chunk root (`Project/`).
 
-### `DESIGN-DECISIONS.md` — written *during* the build, not after
+### the chunk-1 design decisions — written *during* the build, not after
 
 For each of the five design questions, add an entry to this file **at the moment the decision is made** — before moving to the next question. The point is real-time provenance: a reader can see the thinking happen, not a polished narrative reconstructed afterward.
 

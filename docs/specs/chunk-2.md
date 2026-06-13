@@ -9,7 +9,7 @@ A working diagnosis system + V4 UI that:
 3. Renders the result in the V4 two-pane UI with Glean-derived styling
 4. Produces output that the chunk-1 grader validates correctly for the right reasons
 
-Plus the artifact half: `CHUNK2-DESIGN-DECISIONS.md` with Q1–Q6 already locked, growing with any new decisions made during build (real-time provenance, same discipline as chunk 1).
+Plus the artifact half: the chunk-2 design decisions with Q1–Q6 already locked, growing with any new decisions made during build (real-time provenance, same discipline as chunk 1).
 
 **Done-criterion:**
 
@@ -17,7 +17,7 @@ Plus the artifact half: `CHUNK2-DESIGN-DECISIONS.md` with Q1–Q6 already locked
 - ✅ User types Seed 1's symptom (or clicks the chip), gets a V4 response showing `resolve` + `root_cause: nested_subgroup_inheritance_gap` + a `diagnosis_text` that names both groups (`data-team` and `data-team-ml`) and corrects the operator
 - ✅ User types something off-domain (e.g., "what's the weather"), system handles gracefully — for chunk 2 this means evidence-sufficiency fails and the system escalates with low confidence; refuse-out-of-scope is chunk 3's mechanism
 - ✅ The system's output JSON for Seed 1, exported to a file, passes the chunk-1 grader's good-output validation
-- ✅ `CHUNK2-DESIGN-DECISIONS.md` reflects Q1–Q6 (from grill-me) plus any new decisions made during build, in real-time provenance format
+- ✅ the chunk-2 design decisions reflect Q1–Q6 (from grill-me) plus any new decisions made during build, in real-time provenance format
 
 If the grader fails the system's output: fix the system, not the grader.
 
@@ -62,11 +62,11 @@ Project/
   scenario.json                        ← Seed 1 scenario (retrieval setup reads this)
   reference-library/
     nested-group-inheritance.md        ← the one runbook page (the corpus, for now)
-  DESIGN-DECISIONS.md                  ← chunk 1's Q1–Q8 (reference for disciplines carried forward)
+  docs/design-decisions/chunk-1.md     ← chunk 1's Q1–Q8 (reference for disciplines carried forward)
   VALIDATION-NOTES.md                  ← chunk 1's validation artifact
-  CHUNK2-DESIGN-DECISIONS.md           ← Q1–Q6 already drafted (REQUIRED READ FIRST)
-  ui-spec.md                           ← UI spec from the UI grill-me
-  UI-DESIGN-DECISIONS.md               ← UI grill-me's Q1–Q3 (REQUIRED READ)
+  docs/design-decisions/chunk-2.md     ← Q1–Q6 already drafted (REQUIRED READ FIRST)
+  docs/specs/chunk-2-ui.md             ← UI spec from the UI grill-me
+  docs/design-decisions/chunk-2-ui.md  ← UI grill-me's Q1–Q3 (REQUIRED READ)
   tokens.ts                            ← Glean-derived design tokens, v1
   agent-outputs/
     good.json                          ← reference for the output shape your system must produce
@@ -76,7 +76,7 @@ Project/
 
 ## The six locked design decisions (do not re-litigate)
 
-These are settled in `CHUNK2-DESIGN-DECISIONS.md`. Read the entries before building anything.
+These are settled in the chunk-2 design decisions. Read the entries before building anything.
 
 - **Q1** — Two-channel retrieval: embedding search over runbook corpus + identity-based fetch from `status_picture` by entity reference.
 - **Q2** — Anthropic SDK tool-use for structured diagnosis output. Schema-enforced, no JSON-via-prompt fragility.
@@ -185,7 +185,7 @@ The grill-me locked the six big decisions. Several smaller ones will surface dur
 9. **Empty state design.** What's on screen before any query is submitted? The chips probably handle most of this.
 10. **Framing line copy.** Per UI spec, "one line of persistent framing near the input." Sid authors this.
 
-Bring each up at the moment it becomes relevant in the build. **One bounded question at a time.** Propose a default with reasoning. Get Sid's call. Write the entry in `CHUNK2-DESIGN-DECISIONS.md` (Q7, Q8, …) before moving on.
+Bring each up at the moment it becomes relevant in the build. **One bounded question at a time.** Propose a default with reasoning. Get Sid's call. Write the entry in the chunk-2 design decisions (Q7, Q8, …) before moving on.
 
 ## Build order of operations
 
@@ -201,7 +201,7 @@ Bring each up at the moment it becomes relevant in the build. **One bounded ques
 10. **TanStack Query wiring.** Author `hooks/use-diagnose.ts`; wrap the app in `QueryClientProvider`.
 11. **End-to-end test (manual).** Open localhost, run Seed 1 symptom, see V4 output.
 12. **Grader validation.** Export system output to JSON. Run chunk-1 grader against it. Confirm PASS.
-13. **Decisions log.** Confirm `CHUNK2-DESIGN-DECISIONS.md` reflects every decision made during the build.
+13. **Decisions log.** Confirm the chunk-2 design decisions reflect every decision made during the build.
 
 Show Sid the file/dependency plan before scaffolding. Show diffs before running. Show progress in stages, not as one giant final result.
 
@@ -214,7 +214,7 @@ These are non-negotiable disciplines from the previous build session:
 - **Cost / latency / accuracy** only when they distinguish options. Skip the section when they don't — don't ritualize it.
 - **Output before form.** Structure things by what's produced, not by the steps to produce it.
 - **Pressure-test gracefully.** He challenges; treat those as sharp. Be honest when something doesn't need changing rather than manufacturing a change.
-- **Real-time provenance.** Decisions get logged in `CHUNK2-DESIGN-DECISIONS.md` at the moment they're made, in the format already used for Q1–Q6.
+- **Real-time provenance.** Decisions get logged in the chunk-2 design decisions at the moment they're made, in the format already used for Q1–Q6.
 - **Disjointness.** Each chunk tests one mechanism. Don't bake chunk-3 or chunk-5 work into chunk 2.
 - **Stop at saturation.** If Sid says "I'm losing track," consolidate to a written fragment and stop.
 
@@ -235,7 +235,7 @@ When the chunk feels done, run this sequence:
 7. Expected grader output: `verdict=PASS root_cause=PASS criterion_1=PASS criterion_2=PASS → RULER PASSES ✓`.
 8. If the grader fails: fix the system, not the grader. The grader is the ruler from chunk 1; it's the trustworthy party. System disagreement with the grader is system bug.
 9. Type something off-domain ("what's the weather"). The system should escalate (evidence sufficiency fails because retrieval finds nothing similar) — graceful behavior even without chunk 3's refuse logic.
-10. Confirm `CHUNK2-DESIGN-DECISIONS.md` has entries for every design decision made during the build (Q7 onward for any new ones).
+10. Confirm the chunk-2 design decisions have entries for every design decision made during the build (Q7 onward for any new ones).
 
 Then the chunk is done.
 

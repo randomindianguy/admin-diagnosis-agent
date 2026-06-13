@@ -1,7 +1,7 @@
 # UI Design Decisions
 
 Real-time provenance log from the UI grill-me preceding Phase 3 chunk 2.
-Format inherited from chunk 1's `DESIGN-DECISIONS.md`: Question / Options
+Format inherited from the chunk-1 design decisions: Question / Options
 considered / Decision / Reasoning / What would change this decision.
 
 ---

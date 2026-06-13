@@ -1,8 +1,8 @@
 # Retrofit Design Decisions — SID-42 (Chunk 1, seed-and-mutate grader validation)
 
 Real-time provenance for the chunk-1 retrofit. One entry per design question,
-written when the decision was made. Same format as `DESIGN-DECISIONS.md` and
-`CHUNK2-DESIGN-DECISIONS.md`: Question / Options considered / Decision /
+written when the decision was made. Same format as the chunk-1 design decisions and
+the chunk-2 design decisions: Question / Options considered / Decision /
 Reasoning / What would change this decision.
 
 The retrofit applies the course's seed-and-mutate technique (5.3.3) and
@@ -61,11 +61,11 @@ retrofit addresses, with one substantive adaptation (Q1 below).
 
 ## Q4 — Implementation location
 
-**Decision:** Sibling runner `eval/src/validate-mutations.ts`. Inherited from CHUNK2-DESIGN-DECISIONS Q17.
+**Decision:** Sibling runner `eval/src/validate-mutations.ts`. Inherited from chunk-2 design decisions Q17.
 
 **Reasoning:** Q17's pattern was chosen precisely to handle "running the ruler on something other than good.json + wrong.json without modifying the fenced grader file." This is the second such case (chunk-2 system output was the first); same constraints, same shape, no reason to deviate. The runner imports `gradeOutput`, `JUDGE_MODEL`, and the types from the unchanged grader files; loads mutation outputs from `agent-outputs/mutations/`; reads expected grades from a manifest; prints results in a format consistent with chunk-1's validation log.
 
-**What would change this decision:** Running this across many seeds and chunks would justify promoting the pattern to a first-class CLI arg on `validate.ts` (option B from CHUNK2-DESIGN-DECISIONS Q17). For two sibling cases (chunk-2 system output + this retrofit), the sibling-runner pattern still wins.
+**What would change this decision:** Running this across many seeds and chunks would justify promoting the pattern to a first-class CLI arg on `validate.ts` (option B from chunk-2 design decisions Q17). For two sibling cases (chunk-2 system output + this retrofit), the sibling-runner pattern still wins.
 
 ---
 
@@ -112,7 +112,7 @@ The seven axes (locked in the design grill-me, expanded into ten mutation files)
 
 **Decision:** C.
 
-**Reasoning:** The manifest reads like the disagreement-rate spreadsheet 7.1.5 teaches — one document to scan for "here's the labeled intent, here's where the ruler agreed or didn't." A's file-pair pattern doubles the file count and forces context-switching between paired files to read the intent. B contaminates the AgentOutput shape with grading metadata, which breaks the boundary between system output and grading meta-data (the same boundary CHUNK2-DESIGN-DECISIONS Q4 holds with `output_id` and `scenario_id` as envelope fields and DiagnosisOutput as the pure contract). C keeps the mutation files as clean AgentOutputs and centralizes the labeling.
+**Reasoning:** The manifest reads like the disagreement-rate spreadsheet 7.1.5 teaches — one document to scan for "here's the labeled intent, here's where the ruler agreed or didn't." A's file-pair pattern doubles the file count and forces context-switching between paired files to read the intent. B contaminates the AgentOutput shape with grading metadata, which breaks the boundary between system output and grading meta-data (the same boundary chunk-2 design decisions Q4 holds with `output_id` and `scenario_id` as envelope fields and DiagnosisOutput as the pure contract). C keeps the mutation files as clean AgentOutputs and centralizes the labeling.
 
 **What would change this decision:** Mutation count growing past ~50, where a single manifest file becomes unwieldy for scanning. Would shift to A's paired-file structure or to a CSV manifest at that scale. Not the case at retrofit scope.
 

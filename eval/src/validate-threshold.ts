@@ -75,7 +75,7 @@ async function main(): Promise<void> {
 
   console.log("─ SID-43 — chunk-2 threshold calibration retrofit ─────────────────────────");
   console.log(`Anchor symptom score (measured 2026-06-12): ${manifest.anchor_score_measured.toFixed(4)}`);
-  console.log(`Threshold (CHUNK2-DESIGN-DECISIONS Q13):    ${SUFFICIENCY_THRESHOLD.toFixed(2)}`);
+  console.log(`Threshold (chunk-2 design decisions Q13):    ${SUFFICIENCY_THRESHOLD.toFixed(2)}`);
   console.log(`Mutations to measure:                       ${manifest.mutations.length}`);
   console.log("");
   console.log("Embedding each mutation against runbook corpus (voyage-4-lite, lazy-cached)...");

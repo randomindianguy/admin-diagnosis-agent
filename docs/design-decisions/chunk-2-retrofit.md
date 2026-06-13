@@ -1,12 +1,12 @@
 # Chunk 2 Retrofit — Design Decisions (SID-43, threshold calibration via seed-and-mutate)
 
 Real-time provenance for the chunk-2 retrofit. Same format as
-`RETROFIT-DESIGN-DECISIONS.md` (chunk-1 retrofit): one entry per design
+the chunk-1 retrofit design decisions (chunk-1 retrofit): one entry per design
 question, Q1–Q7 surfaced and locked in a design grill-me before any code,
 written when the decision was made.
 
 The retrofit addresses the chunk-2 limitation explicitly flagged in
-`CHUNK2-DESIGN-DECISIONS.md` Q13: **the sufficiency threshold (0.21) is
+the chunk-2 design decisions Q13: **the sufficiency threshold (0.21) is
 calibrated to one specific symptom phrasing** — the exact string in
 `scenario.json`. Free-text input variants of Seed 1 (paraphrases) may score
 below 0.21 and escalate, because raw symptoms sit low against the
@@ -48,7 +48,7 @@ measured.
 | 9 | First-person (end-user filing own ticket) | m09 |
 | 10 | Heavy paraphrase, low surface overlap | m10 |
 
-**Reasoning:** Operators describe problems in widely varying surface forms. The chunk-2 anchor (`scenario.json`'s symptom text) is one specific form; cosine similarity over `voyage-4-lite` embeddings is sensitive to surface variation (this is the symptom↔mechanism vocabulary distance flagged in CHUNK2-DESIGN-DECISIONS Q13, course ref Deepak 8.2.6). Each axis tests one realistic source of surface variation at full strength while preserving the semantic anchor. m10 is the deliberate worst-case — semantically identical, lexically distant from both the anchor AND the runbook. The expectation, named upfront: m10 likely scores lowest of the ten and may sit well below 0.21.
+**Reasoning:** Operators describe problems in widely varying surface forms. The chunk-2 anchor (`scenario.json`'s symptom text) is one specific form; cosine similarity over `voyage-4-lite` embeddings is sensitive to surface variation (this is the symptom↔mechanism vocabulary distance flagged in chunk-2 design decisions Q13, course ref Deepak 8.2.6). Each axis tests one realistic source of surface variation at full strength while preserving the semantic anchor. m10 is the deliberate worst-case — semantically identical, lexically distant from both the anchor AND the runbook. The expectation, named upfront: m10 likely scores lowest of the ten and may sit well below 0.21.
 
 **Generation method (locked by precedent):** Claude generates the ten paraphrases in one pass given the anchor + the runbook page; Sid reviews and prunes. Same as SID-42 and chunk-3 Q4.
 
@@ -72,7 +72,7 @@ measured.
 
 **Decision:** For each mutation, the runner calls `retrieveRunbook(symptom)` from the **unchanged** chunk-2 `lib/retrieval.ts`. Top score from the returned ranked evidence is compared against `SUFFICIENCY_THRESHOLD` (0.21) from the **unchanged** `lib/gate-signals.ts`. Report: score, pass/fail verdict per mutation, plus summary distribution (min/median/mean/max) and false-escalate rate.
 
-**Reasoning:** Reuse the exact retrieval + sufficiency logic the chunk-2 system uses — anything else would measure a parallel implementation, not the real signal. The lazy + module-scope memoized embedding cache (CHUNK2-DESIGN-DECISIONS Q10) means the runbook embeds once across all ten mutations.
+**Reasoning:** Reuse the exact retrieval + sufficiency logic the chunk-2 system uses — anything else would measure a parallel implementation, not the real signal. The lazy + module-scope memoized embedding cache (chunk-2 design decisions Q10) means the runbook embeds once across all ten mutations.
 
 **Implementation wrinkle named:** `lib/retrieval.ts` builds `REFERENCE_LIBRARY_DIR` and `SCENARIO_PATH` from `process.cwd()` at module-load time. The runner must `process.chdir(projectRoot)` *before* importing `lib/retrieval`. Because ESM static imports are hoisted, this is implemented as a static cwd-fix followed by dynamic imports of the chunk-2 modules.
 
@@ -82,7 +82,7 @@ measured.
 
 ## Q5 — Implementation location
 
-**Decision:** Sibling runner at `eval/src/validate-threshold.ts`. Inherited from CHUNK2-DESIGN-DECISIONS Q17 (same pattern SID-42 used).
+**Decision:** Sibling runner at `eval/src/validate-threshold.ts`. Inherited from chunk-2 design decisions Q17 (same pattern SID-42 used).
 
 **Reasoning:** Same constraints, same shape — measuring something against the unchanged chunk-2 code without modifying any fenced file. The runner does not touch `lib/retrieval.ts`, `lib/gate-signals.ts`, `scenario.json`, `reference-library/*`, or chunk-1's eval files. Writes nothing; reads only.
 
@@ -117,5 +117,5 @@ measured.
 
 - **Facts owned by code, judgment owned by author.** The runner produces the score table mechanically; the interpretation (false-escalate rate, what it means for chunk 3) is in CHUNK2-VALIDATION-NOTES.
 - **Real-time provenance.** This file's Q1–Q7 are the decisions from the design grill-me, locked before code. Any build-phase decision surfaced during implementation gets logged here at the moment it's made.
-- **Sibling-runner pattern preserves fenced code.** Same as SID-42 and CHUNK2-DESIGN-DECISIONS Q17.
+- **Sibling-runner pattern preserves fenced code.** Same as SID-42 and chunk-2 design decisions Q17.
 - **Measurement, not patching.** The 0.21 threshold is a known placeholder; the right fix is structural (chunk-7 HyDE), not a recalibration patch on a wrong foundation. Q1's measurement framing enforces this discipline.

@@ -28,7 +28,7 @@ const SCENARIOS: { label: string; query: string }[] = [
     query: "Why can't Maya open Q3 Revenue Models? She's in data-team.",
   },
   {
-    label: "Diagnose · wrong claim",
+    label: "Escalate · unknown entity",
     query:
       "Carlos can't see Q4 forecast files. He's in finance-leads and the group has access. What's wrong?",
   },

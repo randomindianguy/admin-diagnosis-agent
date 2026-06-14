@@ -7,13 +7,76 @@ import { RefusalOutput } from "@/components/refusal-output";
 import { PreviousVerdictRow } from "@/components/previous-verdict-row";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
+import { ReasoningTrace } from "@/components/reasoning-trace";
+import { ShieldIcon, GitHubIcon, SearchIcon } from "@/components/icons";
 import { useDiagnose } from "@/hooks/use-diagnose";
 import type { DiagnosisOutput as DiagnosisOutputT } from "@/lib/schema";
 
 type Previous = { query: string; verdict: DiagnosisOutputT["verdict"] };
 
+const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
+
+const GREETING =
+  "I diagnose workspace access issues — why someone can't reach a resource, and " +
+  "what to do about it. Ask me, or try one of these:";
+
+// Five demo scenarios spanning the three verdicts (SID-48 1.2 / 3.3). Click
+// pre-fills the textarea; auto-submit is deferred to Phase 3.3.
+const SCENARIOS: { label: string; query: string }[] = [
+  {
+    label: "Diagnose · nested group",
+    query: "Why can't Maya open Q3 Revenue Models? She's in data-team.",
+  },
+  {
+    label: "Diagnose · wrong claim",
+    query:
+      "Carlos can't see Q4 forecast files. He's in finance-leads and the group has access. What's wrong?",
+  },
+  {
+    label: "Refuse · off-topic",
+    query: "What's the weather in San Francisco today?",
+  },
+  {
+    label: "Refuse · execution",
+    query: "Can you reset Maya's password?",
+  },
+  {
+    label: "Escalate · inquiry",
+    query: "Who currently has access to the Q3 Revenue Models folder?",
+  },
+];
+
+// Scenario chips — shown in the initial state and re-revealed via "Try another
+// scenario" after a submission. Click pre-fills the textarea (no auto-submit).
+function ScenarioChips({
+  onPick,
+  disabled,
+}: {
+  onPick: (query: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap gap-xs">
+      {SCENARIOS.map((s) => (
+        <button
+          key={s.label}
+          type="button"
+          onClick={() => onPick(s.query)}
+          disabled={disabled}
+          className="rounded-pill border border-border bg-background-secondary px-md py-xs text-text-secondary transition-colors hover:border-brand-primary hover:text-text-primary disabled:opacity-50"
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Home() {
   const [symptom, setSymptom] = useState("");
+  // Reveal the scenario chips again after a submission (collapsed by default once
+  // the conversation starts — chips are primarily a "no query yet" affordance).
+  const [showScenarios, setShowScenarios] = useState(false);
   // The query that produced the current result, and the prior result kept as a
   // slim row for "did rephrasing change anything" (UI-SPEC component 3).
   const [submitted, setSubmitted] = useState("");
@@ -32,52 +95,116 @@ export default function Home() {
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-xl px-md py-2xl">
-      <header className="flex flex-col gap-sm">
-        <h1 className="text-h1Mobile leading-headingTight tracking-heading">
-          Permission Diagnostics
-        </h1>
-        {/* Framing line (authored). */}
-        <p className="text-text-secondary">
-          Built around one principle: never confidently produce a wrong answer.
-          Diagnoses access issues, returns verified resolutions, or escalates
-          with the ambiguous signal flagged.
-        </p>
-      </header>
+    <main className="flex h-screen w-full bg-background-primary text-text-primary">
+      {/* LEFT PANE — conversation / reasoning + input (SID-48 1.1/1.2) */}
+      <section className="flex w-1/2 flex-col border-r border-border">
+        {/* Wordmark + GitHub */}
+        <header className="flex items-center justify-between border-b border-border px-lg py-md">
+          <div className="flex items-center gap-sm text-text-primary">
+            <ShieldIcon className="h-6 w-6 text-brand-primary" />
+            <span className="text-button">admin-diagnosis-agent</span>
+          </div>
+          <a
+            href={REPO_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="View source on GitHub"
+            className="text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <GitHubIcon className="h-5 w-5" />
+          </a>
+        </header>
 
-      <DiagnosisInput
-        value={symptom}
-        onChange={setSymptom}
-        onSubmit={handleSubmit}
-        disabled={diagnose.isPending}
-      />
+        {/* Left pane body: initial greeting+chips, or post-submission conversation. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-lg overflow-auto px-lg py-lg">
+          {!submitted ? (
+            // No query yet — greeting + scenario chips.
+            <>
+              <p className="text-text-secondary">{GREETING}</p>
+              <ScenarioChips onPick={setSymptom} disabled={diagnose.isPending} />
+            </>
+          ) : (
+            // Post-submission — user bubble + reasoning trace + re-pick affordance.
+            <>
+              <div className="flex justify-end">
+                <p className="max-w-[85%] whitespace-pre-wrap rounded-lg bg-brand-primary px-md py-sm text-text-inverse">
+                  {submitted}
+                </p>
+              </div>
 
-      {previous && (
-        <PreviousVerdictRow query={previous.query} verdict={previous.verdict} />
-      )}
+              {diagnose.isPending ? (
+                <p className="text-text-secondary">Working through the runbook and access state…</p>
+              ) : diagnose.isError ? (
+                <p className="text-text-secondary">
+                  Couldn&rsquo;t complete — see the error on the right.
+                </p>
+              ) : diagnose.data ? (
+                <ReasoningTrace output={diagnose.data} />
+              ) : null}
 
-      {/* Outcome region, driven by the mutation lifecycle. */}
-      {diagnose.isPending ? (
-        <LoadingState />
-      ) : diagnose.isError ? (
-        <ErrorState
-          message={diagnose.error.message}
-          onRetry={() => diagnose.mutate(submitted)}
-        />
-      ) : diagnose.data ? (
-        diagnose.data.verdict === "refuse_out_of_scope" ? (
-          <RefusalOutput />
+              <div className="flex flex-col gap-sm">
+                <button
+                  type="button"
+                  onClick={() => setShowScenarios((v) => !v)}
+                  className="self-start text-text-secondary transition-colors hover:text-text-primary"
+                >
+                  {showScenarios ? "Hide scenarios" : "Try another scenario"}
+                </button>
+                {showScenarios && (
+                  <ScenarioChips onPick={setSymptom} disabled={diagnose.isPending} />
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Input pinned to the bottom of the left pane */}
+        <div className="border-t border-border px-lg py-md">
+          <DiagnosisInput
+            value={symptom}
+            onChange={setSymptom}
+            onSubmit={handleSubmit}
+            disabled={diagnose.isPending}
+          />
+        </div>
+      </section>
+
+      {/* RIGHT PANE — diagnosis output. Outcome region preserved from SID-46;
+          full-pane document treatment is 1.5. */}
+      <section className="flex w-1/2 flex-col overflow-auto">
+        {diagnose.isPending || diagnose.isError || diagnose.data ? (
+          <div className="flex flex-col gap-lg px-lg py-lg">
+            {previous && (
+              <PreviousVerdictRow
+                query={previous.query}
+                verdict={previous.verdict}
+              />
+            )}
+            {diagnose.isPending ? (
+              <LoadingState />
+            ) : diagnose.isError ? (
+              <ErrorState
+                message={diagnose.error.message}
+                onRetry={() => diagnose.mutate(submitted)}
+              />
+            ) : diagnose.data ? (
+              diagnose.data.verdict === "refuse_out_of_scope" ? (
+                <RefusalOutput />
+              ) : (
+                <DiagnosisOutput output={diagnose.data} />
+              )
+            ) : null}
+          </div>
         ) : (
-          <DiagnosisOutput output={diagnose.data} />
-        )
-      ) : (
-        <section className="rounded-lg border border-border bg-background-secondary p-lg text-text-secondary">
-          <p>
-            No diagnosis yet. Try the example above, or describe an access issue
-            in your own words.
-          </p>
-        </section>
-      )}
+          /* Empty state — centered, subtle icon + one muted line. */
+          <div className="flex flex-1 flex-col items-center justify-center gap-sm px-lg text-center">
+            <SearchIcon className="h-8 w-8 text-text-muted" />
+            <p className="text-text-secondary">
+              Pick a scenario, or describe an access issue.
+            </p>
+          </div>
+        )}
+      </section>
     </main>
   );
 }

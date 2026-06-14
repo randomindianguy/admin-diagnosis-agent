@@ -4,7 +4,7 @@
 // Only the INNER layout diverges (two-pane vs single-pane).
 export function OutcomeCard({ children }: { children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-border bg-background-primary p-lg">
+    <section className="rounded-lg border border-border bg-background-secondary p-lg">
       {children}
     </section>
   );

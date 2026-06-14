@@ -17,7 +17,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
         className={`${inter.className} min-h-screen bg-background-primary text-text-primary text-body leading-body antialiased`}
       >

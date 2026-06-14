@@ -21,16 +21,20 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Theme-FLIPPING roles resolve to CSS variables (defined in globals.css:
+      // :root = light, .dark = dark). The active theme is set by <html class="dark">.
+      // Saturated/semantic roles (brand, surface, state, text.inverse) stay fixed
+      // literals from tokens.color so verdict + accent meaning is theme-independent.
       colors: {
         background: {
-          primary: tokens.color.background.primary,
-          secondary: tokens.color.background.secondary,
+          primary: "var(--color-bg-primary)",
+          secondary: "var(--color-bg-secondary)",
         },
         text: {
-          primary: tokens.color.text.primary,
-          secondary: tokens.color.text.secondary,
-          muted: tokens.color.text.muted,
-          inverse: tokens.color.text.inverse,
+          primary: "var(--color-text-primary)",
+          secondary: "var(--color-text-secondary)",
+          muted: "var(--color-text-muted)",
+          inverse: tokens.color.text.inverse, // fixed: text on brand/dark surfaces
         },
         brand: {
           primary: tokens.color.brand.primary,
@@ -42,7 +46,7 @@ const config: Config = {
         state: {
           warning: tokens.color.state.warning,
         },
-        border: tokens.color.border,
+        border: "var(--color-border)",
       },
       fontFamily: {
         sans: [tokens.font.sans],

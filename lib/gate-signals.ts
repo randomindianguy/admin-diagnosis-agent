@@ -22,7 +22,7 @@ import type {
 } from "./schema";
 import { diagnose } from "./diagnosis";
 import type { DiagnosisJudgment } from "./diagnosis";
-import type { RetrievalResult } from "./retrieval";
+import type { RetrievalResult, StatusFacts } from "./retrieval";
 import { FALLBACK_ESCALATION_OWNER } from "./escalation";
 
 // --- Sufficiency (Q13) -------------------------------------------------------
@@ -127,9 +127,17 @@ export function applyGate(params: {
   evidence: RetrievedEvidence[];
   consistency_votes: ConsistencyVotes; // self-consistency tally (SID-46 B.1)
   top_similarity: number; // top runbook cosine, surfaced to the UI (SID-46 B.1)
+  status_facts: StatusFacts; // identity-graph slice for the reasoning trace (SID-48 B)
 }): DiagnosisOutput {
-  const { primary, sufficiency, consistency, evidence, consistency_votes, top_similarity } =
-    params;
+  const {
+    primary,
+    sufficiency,
+    consistency,
+    evidence,
+    consistency_votes,
+    top_similarity,
+    status_facts,
+  } = params;
   const gate_signals: GateSignals = { sufficiency, consistency };
   // Code-owned fact fields shared by every resolve/escalate output (Q11 split).
   const facts = {
@@ -137,6 +145,7 @@ export function applyGate(params: {
     gate_signals,
     consistency_votes,
     top_similarity,
+    status_facts,
   };
   const gatePassed = sufficiency === "pass" && consistency === "pass";
 
@@ -206,5 +215,6 @@ export async function runGatedDiagnosis(
     evidence: stripScores(context.runbook),
     consistency_votes: votes,
     top_similarity: context.topScore,
+    status_facts: context.status,
   });
 }

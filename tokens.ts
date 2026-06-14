@@ -44,6 +44,25 @@ export const tokens = {
     border: "#E5E5EA",               // placeholder — refine when the build needs it
   },
 
+  // Dark theme (SID-48 Phase 3). ADDED IN PARALLEL — the light `color` block
+  // above is preserved, not replaced. Only the theme-FLIPPING roles live here;
+  // the saturated/semantic colors (brand.primary, surface.dark, state.warning,
+  // text.inverse) stay fixed across themes so verdict + accent meaning doesn't
+  // shift. These values are mirrored as the `.dark` CSS variables in globals.css;
+  // the active theme is switched there + via <html class="dark"> in layout.tsx.
+  colorDark: {
+    background: {
+      primary: "#0D0D0E",            // near-black page
+      secondary: "#18181B",          // panels / chips / snippet wells
+    },
+    text: {
+      primary: "#EDEDED",            // near-white body / headings
+      secondary: "#A1A1AA",          // muted
+      muted: "#71717A",              // faint / eyebrow
+    },
+    border: "#2A2A2E",
+  },
+
   font: {
     // Polysans Neutral is licensed. Inter is the closest free substitute.
     // If/when you license Polysans, replace the first entry.

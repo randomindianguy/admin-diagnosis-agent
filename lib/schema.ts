@@ -16,6 +16,9 @@ import type {
   CanonicalEscalationOwner,
   FallbackEscalationOwner,
 } from "./escalation";
+// type-only (erased at runtime → no schema↔retrieval cycle). The identity-graph
+// slice is carried into the output for the SID-48 reasoning trace.
+import type { StatusFacts } from "./retrieval";
 
 export type RetrievedEvidence = {
   source: string; // e.g., "nested-group-inheritance.md"
@@ -43,6 +46,7 @@ export type DiagnosisOutput =
       gate_signals: GateSignals;
       consistency_votes: ConsistencyVotes;
       top_similarity: number; // top runbook cosine similarity (retrieval channel 1)
+      status_facts: StatusFacts; // identity-graph slice for the reasoning trace (SID-48 B)
     }
   | {
       verdict: "escalate";
@@ -52,6 +56,7 @@ export type DiagnosisOutput =
       gate_signals: GateSignals;
       consistency_votes: ConsistencyVotes;
       top_similarity: number; // top runbook cosine similarity (retrieval channel 1)
+      status_facts: StatusFacts; // identity-graph slice for the reasoning trace (SID-48 B)
     }
   | {
       // Refuse skips the gate (gate-signals.ts short-circuit) — no evidence,

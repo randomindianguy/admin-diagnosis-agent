@@ -3,4 +3,26 @@
 @tailwind utilities;
 
 /* Glean-aligned base. Palette, type, and spacing come from tokens.ts via the
-   Tailwind utilities (Q7/step-3 wiring); this file stays minimal on purpose. */
+   Tailwind utilities (Q7/step-3 wiring); this file stays minimal on purpose.
+
+   Theme-flipping color roles are CSS variables (SID-48 Phase 3). These MIRROR
+   tokens.ts: :root = tokens.color (light), .dark = tokens.colorDark. The active
+   theme is dark, applied via <html class="dark"> in layout.tsx. Keep the two in
+   sync — tokens.ts stays the documented ground truth. */
+:root {
+  --color-bg-primary: #ffffff;
+  --color-bg-secondary: #f6f6f6;
+  --color-text-primary: #0a0227;
+  --color-text-secondary: #333333;
+  --color-text-muted: #d8d8d8;
+  --color-border: #e5e5ea;
+}
+
+.dark {
+  --color-bg-primary: #0d0d0e;
+  --color-bg-secondary: #18181b;
+  --color-text-primary: #ededed;
+  --color-text-secondary: #a1a1aa;
+  --color-text-muted: #71717a;
+  --color-border: #2a2a2e;
+}

@@ -2,7 +2,10 @@
 // /api/diagnose response (step 8), the UI components (step 9), and — via the
 // exported shape — the chunk-1 grader (step 12). Drift here breaks everything
 // downstream. Shape is locked by CHUNK2-DESIGN-DECISIONS Q4; do not widen for
-// hypothetical future seeds (refuse_out_of_scope is chunk 3, etc.).
+// hypothetical future seeds. The refuse_out_of_scope variant landed in chunk 3
+// (SID-46 Phase A): a tagged-union member carrying ONLY its verdict — the refuse
+// tool takes no input (Q3b α) and its user-facing copy is authored in
+// components/refusal-output.tsx, so there are no fact fields to carry.
 //
 // Q18 update: the escalate variant's `owner` field is no longer an open string.
 // It is the union of CANONICAL_ESCALATION_OWNERS (model-pickable) and
@@ -26,6 +29,11 @@ export type GateSignals = {
   consistency: GateSignal;
 };
 
+// Self-consistency vote tally surfaced to the UI (SID-46 B.1): how many of the
+// N self-consistency samples agreed on the modal decision. Computed for every
+// gated decision (resolve and gate-overridden escalate); refuse skips the gate.
+export type ConsistencyVotes = { agree: number; total: number };
+
 export type DiagnosisOutput =
   | {
       verdict: "resolve";
@@ -33,6 +41,8 @@ export type DiagnosisOutput =
       diagnosis_text: string;
       retrieved_evidence: RetrievedEvidence[];
       gate_signals: GateSignals;
+      consistency_votes: ConsistencyVotes;
+      top_similarity: number; // top runbook cosine similarity (retrieval channel 1)
     }
   | {
       verdict: "escalate";
@@ -40,4 +50,11 @@ export type DiagnosisOutput =
       diagnosis_text: string;
       retrieved_evidence: RetrievedEvidence[];
       gate_signals: GateSignals;
+      consistency_votes: ConsistencyVotes;
+      top_similarity: number; // top runbook cosine similarity (retrieval channel 1)
+    }
+  | {
+      // Refuse skips the gate (gate-signals.ts short-circuit) — no evidence,
+      // signals, or diagnosis_text. Rendered by components/refusal-output.tsx.
+      verdict: "refuse_out_of_scope";
     };

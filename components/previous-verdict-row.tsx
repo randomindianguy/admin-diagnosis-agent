@@ -14,7 +14,11 @@ export function PreviousVerdictRow({ query, verdict }: PreviousVerdictRowProps) 
       <span className="shrink-0 text-text-muted">Previous</span>
       <span className="truncate">{query}</span>
       <span className="ml-auto shrink-0 text-text-primary">
-        {verdict === "resolve" ? "Resolved" : "Escalated"}
+        {verdict === "resolve"
+          ? "Resolved"
+          : verdict === "escalate"
+            ? "Escalated"
+            : "Out of scope"}
       </span>
     </div>
   );

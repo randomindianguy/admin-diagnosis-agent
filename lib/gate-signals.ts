@@ -14,6 +14,7 @@
 // gate_signals) to assemble the full DiagnosisOutput (Q11 judgment/fact split).
 
 import type {
+  ConsistencyVotes,
   DiagnosisOutput,
   GateSignal,
   GateSignals,
@@ -71,6 +72,7 @@ export function sampleDiagnoses(
 export function evaluateConsistency(samples: DiagnosisJudgment[]): {
   signal: GateSignal;
   primary: DiagnosisJudgment;
+  votes: ConsistencyVotes;
 } {
   const counts = new Map<string, number>();
   for (const s of samples) {
@@ -89,7 +91,11 @@ export function evaluateConsistency(samples: DiagnosisJudgment[]): {
   const signal: GateSignal = modalCount >= majority ? "pass" : "fail";
   const primary =
     samples.find((s) => agreementKey(s) === modalKey) ?? samples[0];
-  return { signal, primary };
+  return {
+    signal,
+    primary,
+    votes: { agree: modalCount, total: samples.length },
+  };
 }
 
 // --- Q12 override + assembly -------------------------------------------------
@@ -119,9 +125,19 @@ export function applyGate(params: {
   sufficiency: GateSignal;
   consistency: GateSignal;
   evidence: RetrievedEvidence[];
+  consistency_votes: ConsistencyVotes; // self-consistency tally (SID-46 B.1)
+  top_similarity: number; // top runbook cosine, surfaced to the UI (SID-46 B.1)
 }): DiagnosisOutput {
-  const { primary, sufficiency, consistency, evidence } = params;
+  const { primary, sufficiency, consistency, evidence, consistency_votes, top_similarity } =
+    params;
   const gate_signals: GateSignals = { sufficiency, consistency };
+  // Code-owned fact fields shared by every resolve/escalate output (Q11 split).
+  const facts = {
+    retrieved_evidence: evidence,
+    gate_signals,
+    consistency_votes,
+    top_similarity,
+  };
   const gatePassed = sufficiency === "pass" && consistency === "pass";
 
   if (gatePassed) {
@@ -130,16 +146,14 @@ export function applyGate(params: {
         verdict: "resolve",
         root_cause: primary.root_cause,
         diagnosis_text: primary.diagnosis_text,
-        retrieved_evidence: evidence,
-        gate_signals,
+        ...facts,
       };
     }
     return {
       verdict: "escalate",
       owner: primary.owner,
       diagnosis_text: primary.diagnosis_text,
-      retrieved_evidence: evidence,
-      gate_signals,
+      ...facts,
     };
   }
 
@@ -151,8 +165,7 @@ export function applyGate(params: {
       verdict: "escalate",
       owner: primary.owner,
       diagnosis_text: primary.diagnosis_text,
-      retrieved_evidence: evidence,
-      gate_signals,
+      ...facts,
     };
   }
   // Override a model-resolve into escalate: fallback owner + augmented text.
@@ -160,8 +173,7 @@ export function applyGate(params: {
     verdict: "escalate",
     owner: FALLBACK_ESCALATION_OWNER,
     diagnosis_text: `${overrideNote(sufficiency, consistency)}\n\n${primary.diagnosis_text}`,
-    retrieved_evidence: evidence,
-    gate_signals,
+    ...facts,
   };
 }
 
@@ -172,9 +184,11 @@ export function applyGate(params: {
 export async function runGatedDiagnosis(
   symptom: string,
   context: RetrievalResult,
-): Promise<DiagnosisOutput | { verdict: "refuse_out_of_scope" }> {
+): Promise<DiagnosisOutput> {
+  // DiagnosisOutput now includes the refuse_out_of_scope variant (SID-46 A.1),
+  // so the refuse short-circuit below returns a valid DiagnosisOutput directly.
   const samples = await sampleDiagnoses(symptom, context);
-  const { signal: consistency, primary } = evaluateConsistency(samples);
+  const { signal: consistency, primary, votes } = evaluateConsistency(samples);
 
   // Q3b α (chunk 3): refuse short-circuits the gate. The gate verifies a resolve;
   // a refuse has nothing to verify. Return the judgment as-is, gate_signals omitted.
@@ -190,5 +204,7 @@ export async function runGatedDiagnosis(
     sufficiency,
     consistency,
     evidence: stripScores(context.runbook),
+    consistency_votes: votes,
+    top_similarity: context.topScore,
   });
 }

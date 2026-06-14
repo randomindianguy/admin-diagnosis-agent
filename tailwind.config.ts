@@ -39,6 +39,9 @@ const config: Config = {
         surface: {
           dark: tokens.color.surface.dark,
         },
+        state: {
+          warning: tokens.color.state.warning,
+        },
         border: tokens.color.border,
       },
       fontFamily: {

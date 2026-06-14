@@ -35,6 +35,12 @@ export const tokens = {
     surface: {
       dark: "#0A0227",               // primary CTA background (e.g., "Get a Demo" pill)
     },
+    state: {
+      // The one semantic token (SID-46 D2). Amber that reads as CAUTION, not
+      // error — used ONLY on the escalate verdict pill (B.2). Resolve uses
+      // brand.primary; refuse uses muted neutrals. Do not propagate elsewhere.
+      warning: "#D97706",
+    },
     border: "#E5E5EA",               // placeholder — refine when the build needs it
   },
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { DiagnosisInput } from "@/components/diagnosis-input";
 import { DiagnosisOutput } from "@/components/diagnosis-output";
+import { RefusalOutput } from "@/components/refusal-output";
 import { PreviousVerdictRow } from "@/components/previous-verdict-row";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
@@ -64,7 +65,11 @@ export default function Home() {
           onRetry={() => diagnose.mutate(submitted)}
         />
       ) : diagnose.data ? (
-        <DiagnosisOutput output={diagnose.data} />
+        diagnose.data.verdict === "refuse_out_of_scope" ? (
+          <RefusalOutput />
+        ) : (
+          <DiagnosisOutput output={diagnose.data} />
+        )
       ) : (
         <section className="rounded-lg border border-border bg-background-secondary p-lg text-text-secondary">
           <p>

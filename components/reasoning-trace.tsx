@@ -1,5 +1,8 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
 import {
+  Target,
   Search,
   Users,
   KeyRound,
@@ -8,45 +11,42 @@ import {
   Check,
   AlertTriangle,
   X,
+  Circle,
 } from "lucide-react";
 import type { DiagnosisOutput } from "@/lib/schema";
 import type { StatusFacts } from "@/lib/retrieval";
+import { usePrefersReducedMotion } from "@/hooks/use-trace-reveal";
 
-// Reasoning trace for the left pane (SID-48 B). Rendered statically AFTER
-// diagnose() resolves — no streaming for V1. Each step is one row: muted icon +
-// step name on the left, slightly stronger result on the right, faint separator
-// between rows. Reads as honest "here's what I did," mirroring meeting-prep's
-// tool-status pattern — not a debug log. Built only from existing output fields.
+// Admin reasoning trace (SID-50). Rows mount one-by-one DURING the API call
+// (revealedRowCount) showing skeletons; when the call resolves, skeletons swap to
+// values one-by-one (swappedRowCount). Row 0 is always "Scope check" so the refuse
+// path is narratively legible: scope fails → the rest short-circuits. On refuse,
+// the speculative diagnosis rows collapse and the verdict fades in. The card
+// (page-gated) waits for onSettled. End-user view does NOT use this component.
+
+const ICON = 16;
+const TOTAL_ROWS = 7;
+
+// Leading glyph + label for rows 0–5 (verdict row, index 6, is handled per-path).
+const META: { icon: ReactNode; label: string }[] = [
+  { icon: <Target size={ICON} aria-hidden />, label: "Scope check" },
+  { icon: <Search size={ICON} aria-hidden />, label: "Retrieval" },
+  { icon: <Users size={ICON} aria-hidden />, label: "Identity graph" },
+  { icon: <KeyRound size={ICON} aria-hidden />, label: "Permission check" },
+  { icon: <RefreshCw size={ICON} aria-hidden />, label: "Self-consistency" },
+  { icon: <ShieldCheck size={ICON} aria-hidden />, label: "Gate signals" },
+];
+
+type RefusePhase = "speculative" | "scopeSwap" | "collapse" | "done";
 
 function humanize(label: string): string {
   const s = label.replace(/_/g, " ");
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function TraceRow({
-  icon,
-  label,
-  result,
-  index,
-}: {
-  icon: ReactNode;
-  label: string;
-  result: ReactNode;
-  index: number;
-}) {
-  // SID-49 B.7: staggered fade-in, motion-safe only. Pacing of the reveal — the
-  // diagnosis has already resolved; we're not claiming sequential computation.
+function Skeleton() {
   return (
-    <li
-      className="flex items-start justify-between gap-md border-t border-border py-sm first:border-t-0 motion-safe:animate-[traceRowIn_400ms_ease-out_both]"
-      style={{ animationDelay: `${index * 150}ms` }}
-    >
-      <span className="flex items-center gap-sm text-text-secondary">
-        {icon}
-        {label}
-      </span>
-      <span className="text-right text-text-primary">{result}</span>
-    </li>
+    <span className="inline-block h-3 w-16 rounded-pill bg-background-secondary align-middle motion-safe:animate-pulse" />
   );
 }
 
@@ -58,8 +58,37 @@ function Mark({ pass }: { pass: boolean }) {
   );
 }
 
-// "Maya R. → data-team-ml" (groups resolved id→name). Empty match is meaningful:
-// for an out-of-scenario entity it's WHY the system escalated.
+function TraceRow({
+  icon,
+  label,
+  result,
+  valueKey,
+  className = "",
+}: {
+  icon: ReactNode;
+  label: string;
+  result: ReactNode;
+  valueKey: string;
+  className?: string;
+}) {
+  return (
+    <li
+      className={`flex items-start justify-between gap-md border-t border-border py-sm first:border-t-0 motion-safe:animate-[traceRowIn_300ms_ease-out_both] ${className}`}
+    >
+      <span className="flex items-center gap-sm text-text-secondary">
+        {icon}
+        {label}
+      </span>
+      <span
+        key={valueKey}
+        className="text-right text-text-primary motion-safe:animate-[fadeIn_250ms_ease-out]"
+      >
+        {result}
+      </span>
+    </li>
+  );
+}
+
 function identitySummary(status: StatusFacts): string {
   const nameOf = new Map(status.groups.map((g) => [g.id, g.name]));
   if (status.users.length === 0) return "no matching entities";
@@ -73,7 +102,6 @@ function identitySummary(status: StatusFacts): string {
     .join("; ");
 }
 
-// "Q3 Revenue Models: data-team = viewer"
 function grantsSummary(status: StatusFacts): string {
   const nameOf = new Map(status.groups.map((g) => [g.id, g.name]));
   const lines = status.resources.flatMap((r) =>
@@ -84,98 +112,171 @@ function grantsSummary(status: StatusFacts): string {
   return lines.length ? lines.join("; ") : "no grants found";
 }
 
-const ICON = 16;
+const inScopeValue = (
+  <span className="inline-flex items-center gap-xs">
+    In scope <Check size={14} aria-label="in scope" className="inline shrink-0" />
+  </span>
+);
+const outOfScopeValue = (
+  <span className="inline-flex items-center gap-xs">
+    Out of scope <X size={14} aria-label="out of scope" className="inline shrink-0" />
+  </span>
+);
 
 export function ReasoningTrace({
   output,
-  persona = "admin",
+  revealedRowCount,
+  swappedRowCount,
+  onSettled,
 }: {
-  output: DiagnosisOutput;
-  persona?: "admin" | "end-user";
+  output: DiagnosisOutput | null;
+  revealedRowCount: number;
+  swappedRowCount: number;
+  onSettled?: () => void;
 }) {
-  // End-user view (SID-49 B.1): no reasoning trace — the gate signals / retrieval
-  // scores are admin-anxiety scaffolding, irrelevant to the recipient. A brief
-  // assistant acknowledgment completes the conversation turn; the rich status
-  // lives in the right-pane timeline card.
-  if (persona === "end-user") {
-    return <p className="text-text-secondary">Your request was processed.</p>;
+  const reduced = usePrefersReducedMotion();
+  const isRefuse = output?.verdict === "refuse_out_of_scope";
+  const [phase, setPhase] = useState<RefusePhase>("speculative");
+
+  // Refuse transition: scope-swap → (350ms: 200 swap + 150 delay) → collapse
+  // intermediates → (300ms) → done (verdict in). Reduced-motion snaps to done.
+  useEffect(() => {
+    if (!isRefuse) return;
+    if (reduced) {
+      setPhase("done");
+      return;
+    }
+    setPhase("scopeSwap");
+    const t1 = setTimeout(() => setPhase("collapse"), 350);
+    const t2 = setTimeout(() => setPhase("done"), 650);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [isRefuse, reduced]);
+
+  // Settle signal → page un-gates the output card. Idempotent.
+  useEffect(() => {
+    if (isRefuse) {
+      if (phase === "done") onSettled?.();
+      return;
+    }
+    if (output && swappedRowCount >= TOTAL_ROWS) onSettled?.();
+  }, [isRefuse, phase, output, swappedRowCount, onSettled]);
+
+  // Reduced-motion + still loading: minimal static line.
+  if (reduced && !output) {
+    return <p className="text-text-secondary">Working…</p>;
   }
 
-  // Refuse short-circuits the gate, so the only honest trace is the scope call.
-  if (output.verdict === "refuse_out_of_scope") {
+  const sk = <Skeleton />;
+
+  // ---- REFUSE PATH ----
+  if (isRefuse) {
+    const scopeResult = phase === "speculative" ? sk : outOfScopeValue;
+    const showIntermediates =
+      phase === "speculative" || phase === "scopeSwap" || phase === "collapse";
     return (
       <ol className="flex flex-col">
         <TraceRow
-          index={0}
-          icon={<Search size={ICON} aria-hidden />}
-          label="Scope check"
-          result="Outside diagnosis scope"
+          icon={META[0].icon}
+          label={META[0].label}
+          result={scopeResult}
+          valueKey={phase === "speculative" ? "s" : "v"}
         />
-        <TraceRow
-          index={1}
-          icon={<X size={ICON} aria-hidden />}
-          label="Verdict"
-          result="Refused — out of scope"
-        />
+        {showIntermediates &&
+          META.slice(1).map((m, j) => {
+            const rowIndex = j + 1; // 1..5
+            if (rowIndex >= revealedRowCount) return null; // not mounted yet
+            return (
+              <TraceRow
+                key={m.label}
+                icon={m.icon}
+                label={m.label}
+                result={sk}
+                valueKey="s"
+                className={
+                  phase === "collapse"
+                    ? "motion-safe:animate-[fadeOut_300ms_ease-out_forwards]"
+                    : ""
+                }
+              />
+            );
+          })}
+        {phase === "done" && (
+          <TraceRow
+            icon={<X size={ICON} aria-hidden />}
+            label="Verdict"
+            result="Refused — out of scope"
+            valueKey="v"
+          />
+        )}
       </ol>
     );
   }
 
-  const top = output.retrieved_evidence[0];
-  const verdictRow =
-    output.verdict === "resolve"
-      ? {
-          icon: <Check size={ICON} aria-hidden />,
-          result: `Resolved · ${humanize(output.root_cause)}`,
-        }
-      : {
-          icon: <AlertTriangle size={ICON} aria-hidden />,
-          result: `Escalated · ${output.owner}`,
-        };
+  // ---- RESOLVE / ESCALATE PATH ----
+  // `output` is already narrowed to resolve|escalate|null here (the refuse path
+  // returned above). `data` is non-null only once the result is in; values stay
+  // skeleton until each row's swap turn (i < swappedRowCount).
+  const data = output;
+  const top = data?.retrieved_evidence[0];
+  const count = reduced ? (output ? TOTAL_ROWS : 0) : revealedRowCount;
+
+  const valueFor = (i: number): ReactNode => {
+    if (!data || i >= swappedRowCount) return sk;
+    switch (i) {
+      case 0:
+        return inScopeValue;
+      case 1:
+        return top ? `${top.source} · ${data.top_similarity.toFixed(2)}` : "no page found";
+      case 2:
+        return identitySummary(data.status_facts);
+      case 3:
+        return grantsSummary(data.status_facts);
+      case 4:
+        return `${data.consistency_votes.agree} of ${data.consistency_votes.total} agreed`;
+      case 5:
+        return (
+          <span className="inline-flex items-center gap-xs">
+            Sufficiency <Mark pass={data.gate_signals.sufficiency === "pass"} /> ·
+            Consistency <Mark pass={data.gate_signals.consistency === "pass"} />
+          </span>
+        );
+      default:
+        return data.verdict === "resolve"
+          ? `Resolved · ${humanize(data.root_cause)}`
+          : `Escalated · ${data.owner}`;
+    }
+  };
+
+  const verdictIcon = data ? (
+    data.verdict === "resolve" ? (
+      <Check size={ICON} aria-hidden />
+    ) : (
+      <AlertTriangle size={ICON} aria-hidden />
+    )
+  ) : (
+    <Circle size={ICON} aria-hidden className="text-text-muted" />
+  );
+
+  const iconFor = (i: number): ReactNode => (i < META.length ? META[i].icon : verdictIcon);
+  const labelFor = (i: number): string => (i < META.length ? META[i].label : "Verdict");
 
   return (
     <ol className="flex flex-col">
-      <TraceRow
-        index={0}
-        icon={<Search size={ICON} aria-hidden />}
-        label="Retrieval"
-        result={top ? `${top.source} · ${output.top_similarity.toFixed(2)}` : "no page found"}
-      />
-      <TraceRow
-        index={1}
-        icon={<Users size={ICON} aria-hidden />}
-        label="Identity graph"
-        result={identitySummary(output.status_facts)}
-      />
-      <TraceRow
-        index={2}
-        icon={<KeyRound size={ICON} aria-hidden />}
-        label="Permission check"
-        result={grantsSummary(output.status_facts)}
-      />
-      <TraceRow
-        index={3}
-        icon={<RefreshCw size={ICON} aria-hidden />}
-        label="Self-consistency"
-        result={`${output.consistency_votes.agree} of ${output.consistency_votes.total} agreed`}
-      />
-      <TraceRow
-        index={4}
-        icon={<ShieldCheck size={ICON} aria-hidden />}
-        label="Gate signals"
-        result={
-          <span className="inline-flex items-center gap-xs">
-            Sufficiency <Mark pass={output.gate_signals.sufficiency === "pass"} /> ·
-            Consistency <Mark pass={output.gate_signals.consistency === "pass"} />
-          </span>
-        }
-      />
-      <TraceRow
-        index={5}
-        icon={verdictRow.icon}
-        label="Verdict"
-        result={verdictRow.result}
-      />
+      {Array.from({ length: count }, (_, i) => {
+        const swapped = !!data && i < swappedRowCount;
+        return (
+          <TraceRow
+            key={labelFor(i)}
+            icon={iconFor(i)}
+            label={labelFor(i)}
+            result={valueFor(i)}
+            valueKey={swapped ? "v" : "s"}
+          />
+        );
+      })}
     </ol>
   );
 }

@@ -1,22 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { DiagnosisInput } from "@/components/diagnosis-input";
 import { DiagnosisOutput } from "@/components/diagnosis-output";
 import { RefusalOutput } from "@/components/refusal-output";
 import { EndUserOutput } from "@/components/end-user-output";
 import { PreviousVerdictRow } from "@/components/previous-verdict-row";
-import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
 import { ReasoningTrace } from "@/components/reasoning-trace";
 import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
 import { ShieldIcon, GitHubIcon, SearchIcon } from "@/components/icons";
 import { useDiagnose } from "@/hooks/use-diagnose";
+import { useTraceReveal } from "@/hooks/use-trace-reveal";
 import type { DiagnosisOutput as DiagnosisOutputT } from "@/lib/schema";
 
 type Previous = { query: string; verdict: DiagnosisOutputT["verdict"] };
 
 const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
+
+// Admin reasoning trace = 7 steps (Scope check leads). Reveal mounts rows over
+// ~3.5s; on resolve the values swap in (staggered); the card un-gates when the
+// trace signals it's settled (SID-50).
+const TOTAL_TRACE_ROWS = 7;
 
 const GREETING =
   "I diagnose workspace access issues — why someone can't reach a resource, and " +
@@ -86,7 +91,20 @@ export default function Home() {
   // Persona view (SID-49). Drives the right-pane + reasoning-trace rendering split
   // in Phase B; in Phase A it only powers the toggle. Default Admin, no persistence.
   const [personaView, setPersonaView] = useState<PersonaView>("admin");
+  // Two elapsed-time counters (SID-50): submitKey drives row MOUNT (stepMs=500);
+  // resolveKey drives the value SWAP after the API resolves (stepMs=150).
+  const [submitKey, setSubmitKey] = useState(0);
+  const [resolveKey, setResolveKey] = useState(0);
+  const [traceSettled, setTraceSettled] = useState(false);
+  const revealedRowCount = useTraceReveal(submitKey, TOTAL_TRACE_ROWS);
+  const swappedRowCount = useTraceReveal(resolveKey, TOTAL_TRACE_ROWS, 150);
+  const handleSettled = useCallback(() => setTraceSettled(true), []);
   const diagnose = useDiagnose();
+
+  // Start the value-swap reveal the moment the API resolves.
+  useEffect(() => {
+    if (diagnose.isSuccess && diagnose.data) setResolveKey((k) => k + 1);
+  }, [diagnose.isSuccess, diagnose.data]);
 
   function handleSubmit() {
     const query = symptom.trim();
@@ -96,6 +114,8 @@ export default function Home() {
       setPrevious({ query: submitted, verdict: diagnose.data.verdict });
     }
     setSubmitted(query);
+    setTraceSettled(false); // re-gate the output card
+    setSubmitKey((k) => k + 1); // start a fresh reveal
     diagnose.mutate(query);
   }
 
@@ -137,14 +157,25 @@ export default function Home() {
                 </p>
               </div>
 
-              {diagnose.isPending ? (
-                <p className="text-text-secondary">Working through the runbook and access state…</p>
+              {personaView === "end-user" ? (
+                // End-user: no reasoning trace — a brief acknowledgment once done.
+                diagnose.data ? (
+                  <p className="text-text-secondary">Your request was processed.</p>
+                ) : null
               ) : diagnose.isError ? (
                 <p className="text-text-secondary">
                   Couldn&rsquo;t complete — see the error on the right.
                 </p>
-              ) : diagnose.data ? (
-                <ReasoningTrace output={diagnose.data} persona={personaView} />
+              ) : diagnose.isPending || diagnose.data ? (
+                // Admin: sequential reveal DURING the call; ReasoningTrace handles
+                // loading skeletons, the value swap, and the refuse snap.
+                <ReasoningTrace
+                  key={submitKey}
+                  output={diagnose.isPending ? null : (diagnose.data ?? null)}
+                  revealedRowCount={revealedRowCount}
+                  swappedRowCount={swappedRowCount}
+                  onSettled={handleSettled}
+                />
               ) : null}
 
               <div className="flex flex-col gap-sm">
@@ -182,7 +213,15 @@ export default function Home() {
         </header>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-auto">
-          {diagnose.isPending || diagnose.isError || diagnose.data ? (
+          {!diagnose.isPending && !diagnose.isError && !diagnose.data ? (
+            /* Empty state — centered, subtle icon + one muted line. */
+            <div className="flex flex-1 flex-col items-center justify-center gap-sm px-lg text-center">
+              <SearchIcon className="h-8 w-8 text-text-muted" />
+              <p className="text-text-secondary">
+                Pick a scenario, or describe an access issue.
+              </p>
+            </div>
+          ) : (
             <div className="flex flex-col gap-lg px-lg py-lg">
               {previous && (
                 <PreviousVerdictRow
@@ -190,31 +229,37 @@ export default function Home() {
                   verdict={previous.verdict}
                 />
               )}
-              {diagnose.isPending ? (
-                <LoadingState />
+              {personaView === "end-user" ? (
+                diagnose.isPending ? (
+                  // End-user loading: minimal status line, no sequential trace.
+                  <p className="text-text-secondary">Working on your request…</p>
+                ) : diagnose.isError ? (
+                  <ErrorState
+                    message={diagnose.error.message}
+                    onRetry={() => diagnose.mutate(submitted)}
+                  />
+                ) : diagnose.data ? (
+                  <div className="motion-safe:animate-[fadeIn_250ms_ease-out]">
+                    <EndUserOutput output={diagnose.data} />
+                  </div>
+                ) : null
               ) : diagnose.isError ? (
                 <ErrorState
                   message={diagnose.error.message}
                   onRetry={() => diagnose.mutate(submitted)}
                 />
-              ) : diagnose.data ? (
-                personaView === "end-user" ? (
-                  // End-user view: one component, internal verdict branch (SID-49 B).
-                  <EndUserOutput output={diagnose.data} />
-                ) : diagnose.data.verdict === "refuse_out_of_scope" ? (
-                  <RefusalOutput />
-                ) : (
-                  <DiagnosisOutput output={diagnose.data} />
-                )
+              ) : diagnose.data && traceSettled ? (
+                // Admin: card un-gates only after the trace settles (last value
+                // swapped, or refuse transition done). During the reveal the right
+                // pane stays blank — the left-pane trace is the loading affordance.
+                <div className="motion-safe:animate-[fadeIn_250ms_ease-out]">
+                  {diagnose.data.verdict === "refuse_out_of_scope" ? (
+                    <RefusalOutput />
+                  ) : (
+                    <DiagnosisOutput output={diagnose.data} />
+                  )}
+                </div>
               ) : null}
-            </div>
-          ) : (
-            /* Empty state — centered, subtle icon + one muted line. */
-            <div className="flex flex-1 flex-col items-center justify-center gap-sm px-lg text-center">
-              <SearchIcon className="h-8 w-8 text-text-muted" />
-              <p className="text-text-secondary">
-                Pick a scenario, or describe an access issue.
-              </p>
             </div>
           )}
         </div>

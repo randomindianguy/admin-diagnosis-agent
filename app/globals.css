@@ -27,10 +27,11 @@
   --color-border: #2a2a2e;
 }
 
-/* SID-49 B.7 — staggered fade-in for admin reasoning-trace rows. Applied only via
-   the `motion-safe:` variant, so reduced-motion users get a static render (no
-   animation class → rows sit at their natural opacity:1). This is pacing of the
-   visual reveal, NOT real-time streaming — diagnose() has already resolved. */
+/* Reasoning-trace motion (SID-49 B.7 → SID-50). Per-row sequencing is now driven
+   in JS (rows mount one-by-one DURING the API call), so these keyframes are just
+   per-element entrances — no per-row CSS delay. `motion-safe:` gated, so
+   reduced-motion users get a static render. traceRowIn: a row entering the DOM.
+   fadeIn: the skeleton→value swap and the output-card reveal. */
 @keyframes traceRowIn {
   from {
     opacity: 0;
@@ -39,5 +40,27 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Collapsing intermediate rows on the refuse snap (SID-50). A replacing animation
+   (not an opacity utility) — traceRowIn's `both` fill would otherwise pin
+   opacity:1 and override a static opacity-0 class. `forwards` holds the faded-out
+   state until the rows unmount. */
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }

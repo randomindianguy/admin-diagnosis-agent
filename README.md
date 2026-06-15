@@ -1,108 +1,90 @@
-# Admin Diagnosis Agent
+# admin-diagnosis-agent
 
-A diagnosis system built around one principle: AI products should refuse to confidently answer wrong.
+**An AI agent for workspace access diagnosis. Three outcomes — resolve, escalate, refuse — gated by self-consistency and retrieval sufficiency. Built around one decision: confidently wrong is worse than refusing.**
 
-Most AI products fail in the same place — they generate plausible-sounding answers when they should escalate, leaving users with confidently-wrong outputs that look right until they don't. This system is structured so that any weakness in a confidence signal forces escalation rather than action. The architecture refuses silent failure at every layer — retrieval, diagnosis, and the gate.
+→ Live demo: https://admin-diagnosis-agent.vercel.app
 
-What's distinctive isn't the AI; it's the discipline behind it. The evaluation harness was built *before* any system code existed — a correct output and a confidently-wrong output, hand-crafted, then validated that the grader caught the wrong one for the right reasons. Only then was the system built. 17 design decisions across the build are logged in real-time provenance: options considered, decision made, reasoning, and what would change it.
+Most AI helpdesk products — Risotto, Druid, Moveworks, ServiceNow's AI tier — market autonomous execution. This project takes the opposite position: the agent commits to a diagnosis only when self-consistency and retrieval sufficiency both pass. Otherwise it escalates to a human, or refuses the question outright. Evals were built first — 40/40 grader agreement, 0% false-escalation, 15/15 trust-safety on scope mutations — and the eval results drove the design.
 
-## Architecture
+## How it works
 
 ```mermaid
-graph LR
-    A[Operator types symptom] --> B[Two-channel retrieval]
-    B --> C[Diagnosis LLM<br/>Anthropic tool-use<br/>3-sample self-consistency]
-    C --> D{Gate signals<br/>sufficiency + consistency}
-    D -->|both pass| E[Resolve verdict]
-    D -->|either fails| F[Escalate verdict]
-    E --> G[V4 two-pane UI]
-    F --> G
-
-    H[(Runbook corpus)] -.Voyage embeddings.-> B
-    I[(Status picture)] -.identity graph-fetch.-> B
-
-    style C fill:#343CED,color:#FFFFFF,stroke:#343CED
+flowchart TD
+    Q[Query] --> S{Scope check}
+    S -->|in scope| R[Retrieval]
+    S -->|out of scope| RF[Verdict: Refuse]
+    R --> D[Diagnosis]
+    D --> SC{Self-consistency}
+    SC -->|3 of 3 agree| RS{Retrieval sufficiency}
+    SC -->|disagree| E[Verdict: Escalate]
+    RS -->|sufficient| RV[Verdict: Resolve]
+    RS -->|insufficient| E
+    E --> RT[Routing]
 ```
 
-The diagram evolves with each chunk:
+Three gates in sequence. **Scope check** runs first — out-of-scope queries (off-topic, execution requests) are refused immediately, skipping the rest of the pipeline.
 
-* Chunk 3 will add a `refuse_out_of_scope` verdict for queries outside the system's scope.
-* Chunk 5 will add a third gate signal (`recent_change_addressed`) plus change-log retrieval.
-* Chunk 6 will add contested-routing handling for escalations with multiple plausible owners.
+For in-scope queries, the agent retrieves the relevant runbook and produces a diagnosis three times independently. **Self-consistency** requires all three to agree; disagreement routes to a human reviewer. If self-consistency passes, **retrieval sufficiency** checks whether the retrieved runbook actually contains the information needed to back the diagnosis. If it doesn't, the diagnosis is also routed to a human.
 
-The current diagram reflects what's actually built. When the architecture grows, the diagram grows in the same commit.
+Resolve happens only when both gates pass. Escalations carry the diagnosis and gathered context forward — the reviewer doesn't restart from zero.
 
-## What's built so far
+## Evals built first
 
-**Phase 1 — Scope & Research.** Problem statement, JTBD decomposition, competitor map (Glean Admin Chat, Glean Notifications, Moveworks, Datadog Watchdog), metric architecture grounded in escalate-recall ≥95%. Five golden-set scenarios sourced from real operator incidents.
+The eval harness was built before the agent. A single hand-crafted golden scenario seeded the test set; from there, mutations across three axes — spine (same shape, different entities), anomaly (boundary cases like the scope perimeter), and robustness (paraphrases and near-duplicates) — expanded coverage. Each scenario had to pass a three-criteria filter to earn a slot: distinct failure mode, gradable without a labeler, and aligned with the trust thesis.
 
-**Phase 2 — Design.** Confidence gate with three signals (evidence sufficiency, answer consistency, recent-change-accounted-for). Data model splitting "observed world" from "process record." V4 two-pane UI flow (reasoning visible before the verdict). Scenario schema with pinned-signal grading.
+The numbers below are from this test set, not synthetic self-evaluation:
 
-**Phase 3 — Build, in progress.**
+| Metric | Result |
+|---|---|
+| Grader agreement on diagnoses | 40 / 40 |
+| False escalations across paraphrases | 0% |
+| Trust-safety on scope mutations | 15 / 15 |
 
-* ✅ Chunk 1 — Eval harness ("the ruler"). Hand-crafted Seed 1, validated in both directions before any system code existed. The ruler catches confidently-wrong outputs structurally, with an audit trail showing why each judgment was made.
-* ✅ Chunk 2 — System backend + V4 UI, Seed 1 end-to-end. Two-channel retrieval (Voyage embeddings + identity graph-fetch), Anthropic tool-use with two-tool design, two-signal confidence gate, V4 two-pane UI styled to Glean's design system. Real Seed-1 output validated by the chunk-1 grader for the right reasons.
-* ⬜ Chunk 3 — Out-of-scope refusal handling (Seed 5).
-* ⬜ Chunks 4–6 — Seeds 2, 3, 4.
-* ⬜ Chunk 7 — Deployment + polish.
+Grader agreement measures whether the agent's diagnosis matches the hand-labeled correct answer on each spine scenario. False escalation measures whether trivial query rewordings cause an in-scope query to be incorrectly routed to a human. Trust-safety measures whether scope-boundary mutations — queries designed to sit just outside the agent's scope — get refused correctly rather than confidently misdiagnosed.
 
-## Design provenance
+Each metric maps to a specific failure mode the agent is built to avoid. The eval results drove design decisions on routing thresholds, refusal scope language, and the two-gate confidence mechanism.
 
-Every design decision in this project has a real-time log entry capturing the options considered, the call made, the reasoning, and what would change the decision. The discipline: facts owned by code, judgment owned by author.
+→ [Design log](docs/design-decisions/) for the full methodology + decision history.
 
-* `docs/design-decisions/chunk-1.md` — Chunk 1's eight build-time design decisions
-* `docs/design-decisions/chunk-2.md` — Chunk 2's seventeen decisions (Q1–Q6 grill-me + Q7–Q17 build-phase)
-* `docs/design-decisions/chunk-2-ui.md` — UI grill-me decisions (aesthetic system, IA, outcome-component architecture)
-* `VALIDATION-NOTES.md` — Chunk 1's validation artifact: what was tested, what the ruler reported, why each result is correct, what would invalidate it going forward (with §4 caveats appended during chunk 2)
+## What's live vs planned
 
-> `VALIDATION-NOTES.md` and `CHUNK2-VALIDATION-NOTES.md` stay at the repo root rather than under `docs/`: they're current-state references (chunk-1's §1–2 are auto-regenerated by `eval/src/validate.ts` on every successful validation run), so a reader scanning the repo sees them first. Design decisions and specs are reference material one level deeper, under `docs/`.
+The demo is a portfolio artifact, not a product. The status table below is honest about what's actually implemented versus what's been designed but deferred.
 
-## Stack
+| Capability | Status |
+|---|---|
+| Three-verdict diagnosis (resolve / escalate / refuse) | Live |
+| Self-consistency + retrieval-sufficiency gates | Live |
+| Scope-perimeter refusal | Live |
+| Reasoning trace (admin view) with sequential reveal | Live |
+| End-user view with persona-driven disclosure | Live |
+| Routing to canonical owner (identity / resource / support) | Live |
+| Seed-and-mutate eval harness | Live |
+| Five seeded scenarios across the verdict space | Live |
+| User-supplied diagnosis context (BYO data) | Planned |
+| Refuse-reason taxonomy for eval categorization | Planned |
+| Expanded scenario coverage (false-healthy, post-change drift) | Planned |
+| Real OAuth into identity providers | Out of scope |
 
-* Next.js (app router), TypeScript strict
-* Anthropic SDK with tool-use for schema-enforced output (`claude-sonnet-4-6`)
-* Voyage AI embeddings (`voyage-4-lite`) for runbook retrieval
-* TanStack Query for server state, `useState` for local UI state
-* Tailwind v3 wired to a `tokens.ts` extracted from glean.com
+## What this is NOT
 
-## Running locally
+This is a portfolio project. It's an honest example of how I'd build trust-conservative AI products — not a tool you'd deploy.
 
-Two npm packages live side by side in this repo: the Next.js app (the repo root) and the chunk-1 eval harness (`eval/`). Each has its own env file and dependencies.
+The scope was bounded deliberately:
 
-The Next.js app (from the repo root):
+- **No real integrations.** The runbook, identity graph, and permission state are synthetic. The agent reasons against curated data, not a live Google Workspace or Okta tenant.
+- **No persistence.** Every session is ephemeral. No accounts, no storage, no multi-tenant.
+- **No expansion of the runbook beyond what the eval test set requires.** Adding scenarios means adding evals first; the eval harness is the gating mechanism, not the runbook.
+- **No procedural automation.** The agent diagnoses and recommends; a human admin acts on the diagnosis. The "act on it" surface — automated grant adjustments, ticket creation, status callbacks — is deliberately out of scope.
 
-```bash
-echo "ANTHROPIC_API_KEY=sk-ant-..." > .env.local
-echo "VOYAGE_API_KEY=pa-..." >> .env.local
-npm install
-npm run dev
-```
+Each of these is a design choice with a reason behind it. Trust-conservative AI isn't just a model behavior; it's a scope discipline. Demoing capability the system can't back with evidence breaks the same contract the agent itself maintains.
 
-The app boots at `localhost:3000` (or whatever port Next picks; check the console).
+## Stack + context
 
-The chunk-1 eval harness (from the repo root):
+Built with Next.js, TypeScript, and Voyage embeddings. LLM calls go through Anthropic's API. Deployed on Vercel.
 
-```bash
-cd eval
-cp .env.example .env
-# add ANTHROPIC_API_KEY to .env
-npm install
-npm run validate                       # runs chunk-1's original validation
-npx tsx src/grade-system-output.ts     # grades chunk-2's exported system output
-```
+Design provenance lives in two places:
 
-## Reading order, if you're a hiring manager or reviewer
+- [`docs/specs/`](docs/specs/) — what was built, per chunk
+- [`docs/design-decisions/`](docs/design-decisions/) — why, including alternatives considered and killed
 
-If you have 10 minutes:
-
-1. This README (you're here)
-2. `VALIDATION-NOTES.md` — what the ruler actually proves, plus the chunk-2 §4 caveats (calibration limits, armed-but-unexercised paths)
-3. `docs/design-decisions/chunk-2.md` — the seventeen decisions that shaped the system
-
-If you have 30 minutes, add:
-
-4. `docs/specs/chunk-1.md` — chunk 1's spec (what was being built before chunk 2 started)
-5. `docs/design-decisions/chunk-1.md` — chunk 1's full decision log
-6. `docs/design-decisions/chunk-2-ui.md` — UI grill-me
-
-The design logs are where the PM thinking is most visible.
+The project was built as the capstone for an AI PM course. The course informed the methodology; the design choices, architecture, and scope are mine.

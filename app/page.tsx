@@ -4,10 +4,12 @@ import { useState } from "react";
 import { DiagnosisInput } from "@/components/diagnosis-input";
 import { DiagnosisOutput } from "@/components/diagnosis-output";
 import { RefusalOutput } from "@/components/refusal-output";
+import { EndUserOutput } from "@/components/end-user-output";
 import { PreviousVerdictRow } from "@/components/previous-verdict-row";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
 import { ReasoningTrace } from "@/components/reasoning-trace";
+import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
 import { ShieldIcon, GitHubIcon, SearchIcon } from "@/components/icons";
 import { useDiagnose } from "@/hooks/use-diagnose";
 import type { DiagnosisOutput as DiagnosisOutputT } from "@/lib/schema";
@@ -81,6 +83,9 @@ export default function Home() {
   // slim row for "did rephrasing change anything" (UI-SPEC component 3).
   const [submitted, setSubmitted] = useState("");
   const [previous, setPrevious] = useState<Previous | null>(null);
+  // Persona view (SID-49). Drives the right-pane + reasoning-trace rendering split
+  // in Phase B; in Phase A it only powers the toggle. Default Admin, no persistence.
+  const [personaView, setPersonaView] = useState<PersonaView>("admin");
   const diagnose = useDiagnose();
 
   function handleSubmit() {
@@ -139,7 +144,7 @@ export default function Home() {
                   Couldn&rsquo;t complete — see the error on the right.
                 </p>
               ) : diagnose.data ? (
-                <ReasoningTrace output={diagnose.data} />
+                <ReasoningTrace output={diagnose.data} persona={personaView} />
               ) : null}
 
               <div className="flex flex-col gap-sm">
@@ -169,41 +174,50 @@ export default function Home() {
         </div>
       </section>
 
-      {/* RIGHT PANE — diagnosis output. Outcome region preserved from SID-46;
-          full-pane document treatment is 1.5. */}
-      <section className="flex w-1/2 flex-col overflow-auto">
-        {diagnose.isPending || diagnose.isError || diagnose.data ? (
-          <div className="flex flex-col gap-lg px-lg py-lg">
-            {previous && (
-              <PreviousVerdictRow
-                query={previous.query}
-                verdict={previous.verdict}
-              />
-            )}
-            {diagnose.isPending ? (
-              <LoadingState />
-            ) : diagnose.isError ? (
-              <ErrorState
-                message={diagnose.error.message}
-                onRetry={() => diagnose.mutate(submitted)}
-              />
-            ) : diagnose.data ? (
-              diagnose.data.verdict === "refuse_out_of_scope" ? (
-                <RefusalOutput />
-              ) : (
-                <DiagnosisOutput output={diagnose.data} />
-              )
-            ) : null}
-          </div>
-        ) : (
-          /* Empty state — centered, subtle icon + one muted line. */
-          <div className="flex flex-1 flex-col items-center justify-center gap-sm px-lg text-center">
-            <SearchIcon className="h-8 w-8 text-text-muted" />
-            <p className="text-text-secondary">
-              Pick a scenario, or describe an access issue.
-            </p>
-          </div>
-        )}
+      {/* RIGHT PANE — diagnosis output. Pinned header carries the persona toggle
+          (SID-49 A.1: natural mapping — toggle sits where its effect renders). */}
+      <section className="flex w-1/2 flex-col">
+        <header className="flex items-center justify-end border-b border-border px-lg py-md">
+          <PersonaToggle value={personaView} onChange={setPersonaView} />
+        </header>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+          {diagnose.isPending || diagnose.isError || diagnose.data ? (
+            <div className="flex flex-col gap-lg px-lg py-lg">
+              {previous && (
+                <PreviousVerdictRow
+                  query={previous.query}
+                  verdict={previous.verdict}
+                />
+              )}
+              {diagnose.isPending ? (
+                <LoadingState />
+              ) : diagnose.isError ? (
+                <ErrorState
+                  message={diagnose.error.message}
+                  onRetry={() => diagnose.mutate(submitted)}
+                />
+              ) : diagnose.data ? (
+                personaView === "end-user" ? (
+                  // End-user view: one component, internal verdict branch (SID-49 B).
+                  <EndUserOutput output={diagnose.data} />
+                ) : diagnose.data.verdict === "refuse_out_of_scope" ? (
+                  <RefusalOutput />
+                ) : (
+                  <DiagnosisOutput output={diagnose.data} />
+                )
+              ) : null}
+            </div>
+          ) : (
+            /* Empty state — centered, subtle icon + one muted line. */
+            <div className="flex flex-1 flex-col items-center justify-center gap-sm px-lg text-center">
+              <SearchIcon className="h-8 w-8 text-text-muted" />
+              <p className="text-text-secondary">
+                Pick a scenario, or describe an access issue.
+              </p>
+            </div>
+          )}
+        </div>
       </section>
     </main>
   );

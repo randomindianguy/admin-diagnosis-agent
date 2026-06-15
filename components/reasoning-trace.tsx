@@ -27,13 +27,20 @@ function TraceRow({
   icon,
   label,
   result,
+  index,
 }: {
   icon: ReactNode;
   label: string;
   result: ReactNode;
+  index: number;
 }) {
+  // SID-49 B.7: staggered fade-in, motion-safe only. Pacing of the reveal — the
+  // diagnosis has already resolved; we're not claiming sequential computation.
   return (
-    <li className="flex items-start justify-between gap-md border-t border-border py-sm first:border-t-0">
+    <li
+      className="flex items-start justify-between gap-md border-t border-border py-sm first:border-t-0 motion-safe:animate-[traceRowIn_400ms_ease-out_both]"
+      style={{ animationDelay: `${index * 150}ms` }}
+    >
       <span className="flex items-center gap-sm text-text-secondary">
         {icon}
         {label}
@@ -79,17 +86,33 @@ function grantsSummary(status: StatusFacts): string {
 
 const ICON = 16;
 
-export function ReasoningTrace({ output }: { output: DiagnosisOutput }) {
+export function ReasoningTrace({
+  output,
+  persona = "admin",
+}: {
+  output: DiagnosisOutput;
+  persona?: "admin" | "end-user";
+}) {
+  // End-user view (SID-49 B.1): no reasoning trace — the gate signals / retrieval
+  // scores are admin-anxiety scaffolding, irrelevant to the recipient. A brief
+  // assistant acknowledgment completes the conversation turn; the rich status
+  // lives in the right-pane timeline card.
+  if (persona === "end-user") {
+    return <p className="text-text-secondary">Your request was processed.</p>;
+  }
+
   // Refuse short-circuits the gate, so the only honest trace is the scope call.
   if (output.verdict === "refuse_out_of_scope") {
     return (
       <ol className="flex flex-col">
         <TraceRow
+          index={0}
           icon={<Search size={ICON} aria-hidden />}
           label="Scope check"
           result="Outside diagnosis scope"
         />
         <TraceRow
+          index={1}
           icon={<X size={ICON} aria-hidden />}
           label="Verdict"
           result="Refused — out of scope"
@@ -113,26 +136,31 @@ export function ReasoningTrace({ output }: { output: DiagnosisOutput }) {
   return (
     <ol className="flex flex-col">
       <TraceRow
+        index={0}
         icon={<Search size={ICON} aria-hidden />}
         label="Retrieval"
         result={top ? `${top.source} · ${output.top_similarity.toFixed(2)}` : "no page found"}
       />
       <TraceRow
+        index={1}
         icon={<Users size={ICON} aria-hidden />}
         label="Identity graph"
         result={identitySummary(output.status_facts)}
       />
       <TraceRow
+        index={2}
         icon={<KeyRound size={ICON} aria-hidden />}
         label="Permission check"
         result={grantsSummary(output.status_facts)}
       />
       <TraceRow
+        index={3}
         icon={<RefreshCw size={ICON} aria-hidden />}
         label="Self-consistency"
         result={`${output.consistency_votes.agree} of ${output.consistency_votes.total} agreed`}
       />
       <TraceRow
+        index={4}
         icon={<ShieldCheck size={ICON} aria-hidden />}
         label="Gate signals"
         result={
@@ -142,7 +170,12 @@ export function ReasoningTrace({ output }: { output: DiagnosisOutput }) {
           </span>
         }
       />
-      <TraceRow icon={verdictRow.icon} label="Verdict" result={verdictRow.result} />
+      <TraceRow
+        index={5}
+        icon={verdictRow.icon}
+        label="Verdict"
+        result={verdictRow.result}
+      />
     </ol>
   );
 }

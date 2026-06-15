@@ -26,3 +26,18 @@
   --color-text-muted: #71717a;
   --color-border: #2a2a2e;
 }
+
+/* SID-49 B.7 — staggered fade-in for admin reasoning-trace rows. Applied only via
+   the `motion-safe:` variant, so reduced-motion users get a static render (no
+   animation class → rows sit at their natural opacity:1). This is pacing of the
+   visual reveal, NOT real-time streaming — diagnose() has already resolved. */
+@keyframes traceRowIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

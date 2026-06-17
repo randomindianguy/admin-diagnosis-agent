@@ -46,8 +46,9 @@ function DisclosureBanner() {
     <div className="flex items-start gap-sm rounded-md border border-border bg-background-secondary px-md py-sm text-sm text-text-secondary">
       <Info size={16} aria-hidden className="mt-[2px] shrink-0" />
       <p>
-        End-user view — content designed for the recipient&rsquo;s job, not a
-        stripped-down admin view. Toggle to Admin view for the full diagnosis.
+        End-user view — what the person who&rsquo;s blocked sees. Toggle to Admin
+        for the escalation package: the full gate-by-gate investigation an admin
+        receives.
       </p>
     </div>
   );
@@ -98,40 +99,41 @@ function Timeline({ steps, accent }: { steps: Step[]; accent: Accent }) {
 
 function content(output: DiagnosisOutput): CardContent {
   if (output.verdict === "resolve") {
+    // SID-56: resolve = the user gets their answer directly. No ticket created.
+    // The body is the agent's actual finding (diagnosis_text), addressed to them.
     return {
       accent: "brand",
       pillIcon: <Check size={16} aria-hidden />,
       pillClass: "bg-brand-primary text-text-inverse",
-      pillLabel: "Diagnosed",
-      headline: "Your access issue has been diagnosed.",
+      pillLabel: "Answered",
+      headline: "Here's your answer.",
       steps: [
         { lit: true, label: "Filed" },
-        { lit: true, label: "Diagnosed" },
-        { lit: false, label: "Admin reviews & applies" },
+        { lit: true, label: "Checked" },
+        { lit: true, label: "Answered" },
       ],
-      body:
-        "The diagnosis has been sent to your IT admin with the recommended fix. " +
-        "You'll hear from them once they've reviewed and applied it.",
+      body: output.diagnosis_text,
       nextStep:
-        "You don't need to do anything right now. Typical turnaround is 1 business day.",
+        "If that doesn't get you unblocked, reply with more detail and I'll take another look.",
     };
   }
   if (output.verdict === "escalate") {
+    // SID-56: escalate = ticket created, full evidence attached for the admin.
     const team = ownerLabel(output.owner);
     return {
       accent: "warning",
       pillIcon: <AlertTriangle size={16} aria-hidden />,
       pillClass: "bg-state-warning text-surface-dark",
-      pillLabel: "Routed",
-      headline: "Your request has been routed.",
+      pillLabel: "Submitted",
+      headline: "Submitted to your admin.",
       steps: [
         { lit: true, label: "Filed" },
-        { lit: true, label: "Routed", chip: team },
-        { lit: false, label: "Team picks up" },
+        { lit: true, label: "Submitted", chip: team },
+        { lit: false, label: "Admin reviews" },
       ],
       body:
-        `Your ${team} has been sent the case along with the context gathered so far. ` +
-        "You won't need to re-explain it when they pick it up.",
+        `I've sent your ${team} the full investigation — what you're trying to reach, your current access, and what I found. ` +
+        "You won't need to re-explain it.",
       nextStep: "Watch for a follow-up from them — typically within 1 business day.",
     };
   }

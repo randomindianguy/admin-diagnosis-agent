@@ -33,7 +33,7 @@ export function DiagnosisInput({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         rows={3}
-        placeholder="Describe the access issue…"
+        placeholder="What are you trying to access, and what's happening when you try?"
         className="w-full resize-none rounded-md border border-border bg-background-primary p-md text-body text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-none disabled:opacity-50"
       />
       <div className="flex justify-end">
@@ -43,7 +43,7 @@ export function DiagnosisInput({
           disabled={!canSubmit}
           className="rounded-pill bg-brand-primary px-lg py-sm text-button text-text-inverse transition-opacity disabled:opacity-40"
         >
-          Diagnose
+          Check access
         </button>
       </div>
     </section>

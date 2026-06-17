@@ -1,14 +1,14 @@
 "use client";
 
-// Persona view toggle (SID-49 A.1). Two-state segmented control — the navigational
-// element for the whole disclosure feature. Default Admin. No persistence. Subtle:
-// existing dark-theme tokens only, no new accent — the active segment reads as a
-// raised surface (background-secondary) on the page (background-primary).
+// Persona view toggle (SID-49 A.1; reframed SID-56). Two-state segmented control.
+// End user is now the PRIMARY persona (default + first); "Admin" exposes the
+// escalation-package view. No persistence. Subtle: existing dark-theme tokens
+// only — the active segment reads as a raised surface (background-secondary).
 export type PersonaView = "admin" | "end-user";
 
 const OPTIONS: { value: PersonaView; label: string }[] = [
-  { value: "admin", label: "Admin" },
   { value: "end-user", label: "End user" },
+  { value: "admin", label: "Admin" },
 ];
 
 export function PersonaToggle({

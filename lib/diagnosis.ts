@@ -18,7 +18,22 @@ import { CANONICAL_ROOT_CAUSES } from "./canonical-labels";
 import type { CanonicalRootCause } from "./canonical-labels";
 import { CANONICAL_ESCALATION_OWNERS } from "./escalation";
 import type { CanonicalEscalationOwner } from "./escalation";
+import type { RefuseReason } from "./schema";
 import type { RetrievalResult, StatusFacts } from "./retrieval";
+
+// Refuse reasons the model may emit (SID-56 Phase 2). Mirrors RefuseReason in
+// schema.ts — kept as a runtime array here for tool-enum + parse validation.
+const REFUSE_REASONS: readonly RefuseReason[] = [
+  "out_of_scope",
+  "resource_ambiguity",
+  "intent_ambiguity",
+] as const;
+
+// The two ambiguity reasons require a `missing_info` ask; out_of_scope does not.
+const AMBIGUITY_REASONS: readonly RefuseReason[] = [
+  "resource_ambiguity",
+  "intent_ambiguity",
+] as const;
 
 const DIAGNOSIS_MODEL = "claude-sonnet-4-6";
 
@@ -34,7 +49,11 @@ const DIAGNOSIS_MODEL = "claude-sonnet-4-6";
 export type DiagnosisJudgment =
   | { verdict: "resolve"; root_cause: CanonicalRootCause; diagnosis_text: string }
   | { verdict: "escalate"; owner: CanonicalEscalationOwner; diagnosis_text: string }
-  | { verdict: "refuse_out_of_scope" };
+  | {
+      verdict: "refuse_out_of_scope";
+      refuse_reason: RefuseReason;
+      missing_info?: string;
+    };
 
 // --- The approved tool-schema contract (Q11) ---------------------------------
 
@@ -96,15 +115,37 @@ const ESCALATE_TOOL: Anthropic.Tool = {
 const REFUSE_TOOL: Anthropic.Tool = {
   name: "refuse",
   description:
-    "Refuse when the operator's request falls outside scope — it is not an access diagnosis, an access " +
-    "audit/state inquiry, or an access recommendation. (The system prompt defines exactly what is in scope; " +
-    "apply that definition — do not restate it here.) Out-of-scope requests include execution/change actions, " +
-    "policy or process questions, configuration changes, and generic IT or non-admin questions. " +
-    "Takes no input: the user-facing scope-perimeter message is authored by the system, not generated.",
+    "Refuse when you cannot responsibly produce a diagnosis. Classify WHY with refuse_reason — the three " +
+    "reasons are siblings, not degrees of the same thing:\n" +
+    "  • out_of_scope — the request is not an access diagnosis, an access state inquiry, or an access " +
+    "recommendation at all (e.g. execution/change actions, policy or process questions, configuration " +
+    "changes, generic IT or non-admin questions). The system prompt defines the in-scope perimeter; apply it.\n" +
+    "  • resource_ambiguity — the request IS in scope, but you cannot tell WHICH resource or account it is " +
+    "about (e.g. \"I can't open the dashboard\" when more than one could be meant). Do NOT guess.\n" +
+    "  • intent_ambiguity — the request IS in scope, but you cannot tell WHAT the user was trying to do " +
+    "(e.g. \"my access broke yesterday\" with no action named). Do NOT guess.\n" +
+    "For resource_ambiguity and intent_ambiguity you MUST set missing_info to the single specific thing you " +
+    "need back from the user. For out_of_scope, omit missing_info (nothing is missing — the request is " +
+    "simply outside scope, and the user-facing perimeter copy is authored by the system).",
   input_schema: {
     type: "object",
-    properties: {},
-    required: [],
+    properties: {
+      refuse_reason: {
+        type: "string",
+        enum: [...REFUSE_REASONS],
+        description:
+          "Which kind of refusal this is. Must be exactly one of the enumerated reasons — never invent one.",
+      },
+      missing_info: {
+        type: "string",
+        description:
+          "REQUIRED for resource_ambiguity and intent_ambiguity: the one specific thing you need the user to " +
+          "supply, phrased as a short direct question to them. Ground it in what you can actually see — refer " +
+          "only to resources, accounts, or groups present in the status picture; never assert workspace " +
+          "specifics you cannot verify. OMIT entirely for out_of_scope.",
+      },
+    },
+    required: ["refuse_reason"],
     additionalProperties: false,
   },
 };
@@ -138,9 +179,27 @@ const SYSTEM_PROMPT = [
   "  recommendation requests, escalate with a clear summary of what the user asked and route to a",
   "  human reviewer — explain that those question types are handled by a person, not this assistant,",
   "  in the current setup. Do NOT fake-resolve them by picking a root_cause that does not fit.",
-  "- Call `refuse` when the request does not fit one of the three in-scope shapes above. The refuse tool",
-  "  takes no arguments — the user-facing explanation of what this assistant does and does not handle is",
-  "  authored separately and shown to the user automatically.",
+  "- Call `refuse` when you cannot responsibly produce a diagnosis. Refuse covers three SIBLING cases —",
+  "  classify which one with refuse_reason (they are distinct, not degrees of severity):",
+  "    • out_of_scope — the request does not fit one of the three in-scope shapes above at all. Omit",
+  "      missing_info; the user-facing perimeter copy is authored separately and shown automatically.",
+  "    • resource_ambiguity — the request is in scope, but you cannot tell WHICH resource or account it",
+  "      concerns (e.g. \"I can't open the dashboard\" when the status picture shows more than one, or none",
+  "      that clearly matches). Set missing_info to a short direct question naming what you need.",
+  "    • intent_ambiguity — the request is in scope, but you cannot tell WHAT the user was trying to do",
+  "      (e.g. \"my access broke yesterday\" with no action named). Set missing_info to a short direct",
+  "      question asking what they were trying to do.",
+  "  Prefer a clarifying refuse over guessing: if you would have to invent which resource is meant or what",
+  "  the user attempted, refuse with the matching ambiguity reason instead. When you write missing_info,",
+  "  refer ONLY to resources, accounts, or groups that actually appear in the status picture — never assert",
+  "  workspace specifics (how many dashboards exist, which teams own what) that you cannot see.",
+  "  Ask exactly ONE specific question — the single most blocking unknown, the one piece of information that,",
+  "  once supplied, would let you run the diagnosis. Write it as one short sentence ending in a question mark.",
+  "  Do NOT add a \"for example, ...\" clause, and do NOT offer alternatives joined by \"or\" (no",
+  "  \"which resource or what action\"). Pick the most blocking unknown and ask only for that.",
+  "    Good (intent unclear): \"What were you trying to do when your access broke?\"",
+  "    Bad  (intent unclear): \"What were you trying to do — for example, which resource or what action?\"",
+  "    Good (resource unclear): \"Which specific dashboard are you trying to open?\"",
   "",
   "When you resolve, the diagnosis_text must name the specific entities involved and, if the user's",
   "request contains a mistaken claim (e.g. about which group they are in), correct it explicitly by",
@@ -225,6 +284,13 @@ function isCanonicalOwner(value: unknown): value is CanonicalEscalationOwner {
   );
 }
 
+function isRefuseReason(value: unknown): value is RefuseReason {
+  return (
+    typeof value === "string" &&
+    (REFUSE_REASONS as readonly string[]).includes(value)
+  );
+}
+
 function parseToolCall(
   name: string,
   input: unknown,
@@ -257,8 +323,32 @@ function parseToolCall(
     return { verdict: "escalate", owner: obj.owner, diagnosis_text: obj.diagnosis_text };
   }
   if (name === "refuse") {
-    // Q3b α: no input fields to validate — the verdict IS the refuse tool firing.
-    return { verdict: "refuse_out_of_scope" };
+    // SID-56 Phase 2: refuse now carries a reason (and, for the two ambiguity
+    // reasons, a missing_info ask). Fail loud on a non-enum reason — the verdict
+    // still discriminates on "refuse_out_of_scope" (additive widening).
+    if (!isRefuseReason(obj.refuse_reason)) {
+      throw new Error(
+        `refuse tool returned a non-canonical refuse_reason: ${JSON.stringify(obj.refuse_reason)}`,
+      );
+    }
+    const reason = obj.refuse_reason;
+    const needsInfo = (AMBIGUITY_REASONS as readonly string[]).includes(reason);
+    const missing =
+      typeof obj.missing_info === "string" && obj.missing_info.trim().length > 0
+        ? obj.missing_info.trim()
+        : undefined;
+    if (needsInfo && !missing) {
+      throw new Error(
+        `refuse tool returned reason "${reason}" without a missing_info ask.`,
+      );
+    }
+    // out_of_scope carries no missing_info even if the model supplied one — the
+    // perimeter copy is author-owned, so drop it to keep the contract honest.
+    return {
+      verdict: "refuse_out_of_scope",
+      refuse_reason: reason,
+      ...(needsInfo ? { missing_info: missing } : {}),
+    };
   }
   throw new Error(`Model called an unexpected tool: ${JSON.stringify(name)}`);
 }

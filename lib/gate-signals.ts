@@ -204,7 +204,7 @@ export async function runGatedDiagnosis(
   // The schema-level DiagnosisOutput widening and the refuse UI treatment are
   // step-4 work — this keeps chunk-2 resolve/escalate behavior untouched.
   if (primary.verdict === "refuse_out_of_scope") {
-    return { verdict: "refuse_out_of_scope" };
+    return primary; // SID-56 Phase 2: forward refuse_reason + missing_info as-is
   }
 
   const sufficiency = evaluateSufficiency(context.topScore);

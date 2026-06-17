@@ -28,15 +28,31 @@ const GREETING =
   "permissions, then get you unblocked, tell you what's missing, or hand it to " +
   "your admin with the full picture. Try this:";
 
-// SID-56 Phase 1 — one end-user placeholder to validate the flow end-to-end. The
-// query self-identifies (no auth in this demo, so identity comes from the message;
-// a message without it is exactly the REFUSE-1 identity-ambiguity case in Phase 2).
-// The full 5–6 synthetic descriptions land with REFUSE 1/2.
+// SID-56 — end-user scenarios spanning the verdict shapes for eyes-on. The query
+// self-identifies (no auth in this demo, so identity comes from the message).
+// Phase 2 adds the two ambiguity refuses (resource / intent) + an out-of-scope
+// one; the full shift-2 voice pass expands this set.
 const SCENARIOS: { label: string; query: string }[] = [
   {
+    // resolve
     label: "I can't open a shared folder",
     query:
       "I'm Maya on the data team and I can't open the Q3 Revenue Models folder in Drive.",
+  },
+  {
+    // resource_ambiguity (REFUSE 1) — which dashboard?
+    label: "I can't open the dashboard",
+    query: "I can't open the dashboard.",
+  },
+  {
+    // intent_ambiguity (REFUSE 2) — doing what?
+    label: "My access broke yesterday",
+    query: "My access broke yesterday.",
+  },
+  {
+    // out_of_scope — policy question, not an access diagnosis.
+    label: "What's the password policy?",
+    query: "What's the company policy on how often we have to reset passwords?",
   },
 ];
 
@@ -86,6 +102,15 @@ export default function Home() {
   const swappedRowCount = useTraceReveal(resolveKey, TOTAL_TRACE_ROWS, 150);
   const handleSettled = useCallback(() => setTraceSettled(true), []);
   const diagnose = useDiagnose();
+
+  // SID-56 Phase 2 (Option A): the two ambiguity refuses are end-user clarification
+  // events — nothing escalates, so the admin sees a compact note, not the trace.
+  // out_of_scope refuse keeps the trace + perimeter card. Computed once for the
+  // admin layout branch below.
+  const data = diagnose.data;
+  const isAmbiguityRefuse =
+    data?.verdict === "refuse_out_of_scope" &&
+    data.refuse_reason !== "out_of_scope";
 
   // Start the value-swap reveal the moment the API resolves.
   useEffect(() => {
@@ -172,6 +197,15 @@ export default function Home() {
             appear here.
           </p>
         </div>
+      ) : isAmbiguityRefuse && data ? (
+        // ADMIN, ambiguity refuse — compact note, no trace, no two-pane (SID-56
+        // Phase 2, Option A). The assistant asked the user to clarify; nothing
+        // was investigated or routed, so there's no escalation package to show.
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-lg">
+          <div className="w-full max-w-[520px] motion-safe:animate-[fadeIn_250ms_ease-out]">
+            <RefusalOutput output={data} />
+          </div>
+        </div>
       ) : (
         // ADMIN, active — two-pane escalation package: reasoning trace (left) +
         // evidence card (right). Review-only: no intake, no re-pick affordance.
@@ -217,7 +251,9 @@ export default function Home() {
                   Escalation package — the full investigation an admin receives.
                 </p>
                 {diagnose.data.verdict === "refuse_out_of_scope" ? (
-                  <RefusalOutput />
+                  // Only out_of_scope reaches here — ambiguity refuses branched to
+                  // the compact note above, before this two-pane layout.
+                  <RefusalOutput output={diagnose.data} />
                 ) : (
                   <DiagnosisOutput output={diagnose.data} />
                 )}

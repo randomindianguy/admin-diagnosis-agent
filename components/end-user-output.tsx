@@ -137,7 +137,45 @@ function content(output: DiagnosisOutput): CardContent {
       nextStep: "Watch for a follow-up from them — typically within 1 business day.",
     };
   }
-  // refuse — two dots only; nothing is queued downstream (honest signal).
+  // refuse — three SIBLING shapes (SID-56 Phase 2), all two-dot timelines because
+  // nothing is queued downstream (honest signal). The two ambiguity reasons are
+  // clarify-and-resubmit (ball in the user's court); out_of_scope is terminal.
+  if (output.refuse_reason === "resource_ambiguity") {
+    return {
+      accent: "muted",
+      pillIcon: <Info size={16} aria-hidden />,
+      pillClass: "border border-border bg-background-primary text-text-secondary",
+      pillLabel: "Need a bit more",
+      // Beat 1 — authored lead; Beat 2 (body) = the model's missing_info ask.
+      headline: "Checked your access — before I can be sure, I need a bit more.",
+      steps: [
+        { lit: true, label: "Checked" },
+        { lit: true, label: "Needs detail" },
+      ],
+      body:
+        output.missing_info ??
+        "There's more than one resource this could be. Which one are you trying to open?",
+      nextStep: "Add that detail and submit again — I'll pick up from there.",
+    };
+  }
+  if (output.refuse_reason === "intent_ambiguity") {
+    return {
+      accent: "muted",
+      pillIcon: <Info size={16} aria-hidden />,
+      pillClass: "border border-border bg-background-primary text-text-secondary",
+      pillLabel: "Need a bit more",
+      headline: "Need a bit more before I can dig in.",
+      steps: [
+        { lit: true, label: "Checked" },
+        { lit: true, label: "Needs detail" },
+      ],
+      body:
+        output.missing_info ??
+        "Access issues can mean different things. What were you trying to do?",
+      nextStep: "Add that detail and submit again — I'll take it from there.",
+    };
+  }
+  // out_of_scope — terminal; routed nowhere, the user goes to the helpdesk.
   return {
     accent: "muted",
     pillIcon: <Info size={16} aria-hidden />,

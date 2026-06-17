@@ -27,6 +27,18 @@ export type RetrievedEvidence = {
 
 export type GateSignal = "pass" | "fail";
 
+// Refuse taxonomy (SID-56 Phase 2). Three SIBLING reasons, not a hierarchy:
+//   out_of_scope       — request isn't access diagnosis/inquiry/recommendation.
+//   resource_ambiguity — in-scope, but which resource/account is unclear (REFUSE 1).
+//   intent_ambiguity   — in-scope, but what the user was trying to do is unclear (REFUSE 2).
+// The verdict discriminant stays "refuse_out_of_scope" (additive only — eval sets
+// key on the verdict, not the reason, so they don't churn). For the two ambiguity
+// reasons the model fills `missing_info` with the one specific thing it needs back.
+export type RefuseReason =
+  | "out_of_scope"
+  | "resource_ambiguity"
+  | "intent_ambiguity";
+
 export type GateSignals = {
   sufficiency: GateSignal;
   consistency: GateSignal;
@@ -60,6 +72,13 @@ export type DiagnosisOutput =
     }
   | {
       // Refuse skips the gate (gate-signals.ts short-circuit) — no evidence,
-      // signals, or diagnosis_text. Rendered by components/refusal-output.tsx.
+      // signals, or diagnosis_text. Rendered by components/refusal-output.tsx
+      // (admin) and components/end-user-output.tsx (end user). SID-56 Phase 2
+      // widened this additively: `refuse_reason` classifies the three shapes;
+      // `missing_info` carries the model's clarification ask for the two
+      // ambiguity reasons (absent for out_of_scope — nothing is missing, it's
+      // simply outside scope).
       verdict: "refuse_out_of_scope";
+      refuse_reason: RefuseReason;
+      missing_info?: string;
     };

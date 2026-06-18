@@ -9,7 +9,7 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Access diagnosis",
+  title: "Cleared — workspace access triage",
   description: "Diagnose workspace access issues and show the reasoning.",
 };
 

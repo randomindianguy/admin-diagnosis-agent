@@ -245,7 +245,7 @@ export default function Home() {
         <div className="flex items-center gap-sm text-text-primary">
           <ShieldIcon className="h-6 w-6 text-brand-primary" />
           {/* Page heading (SID-64 a11y: gives the page an h1 — same visual). */}
-          <h1 className="text-button">admin-diagnosis-agent</h1>
+          <h1 className="text-button">Cleared</h1>
         </div>
         <div className="flex items-center gap-md">
           <PersonaToggle

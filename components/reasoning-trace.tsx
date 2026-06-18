@@ -64,16 +64,20 @@ function TraceRow({
   result,
   valueKey,
   className = "",
+  noAnim = false,
 }: {
   icon: ReactNode;
   label: string;
   result: ReactNode;
   valueKey: string;
   className?: string;
+  noAnim?: boolean;
 }) {
+  // noAnim (settled mode): the trace is a static record, not a live reveal — drop
+  // the per-row entrance + value-fade so it reads as "already happened" (SID-63).
   return (
     <li
-      className={`flex items-start justify-between gap-md border-t border-border py-sm first:border-t-0 motion-safe:animate-[traceRowIn_300ms_ease-out_both] ${className}`}
+      className={`flex items-start justify-between gap-md border-t border-border py-sm first:border-t-0 ${noAnim ? "" : "motion-safe:animate-[traceRowIn_300ms_ease-out_both]"} ${className}`}
     >
       <span className="flex items-center gap-sm text-text-secondary">
         {icon}
@@ -81,7 +85,7 @@ function TraceRow({
       </span>
       <span
         key={valueKey}
-        className="text-right text-text-primary motion-safe:animate-[fadeIn_250ms_ease-out]"
+        className={`text-right text-text-primary ${noAnim ? "" : "motion-safe:animate-[fadeIn_250ms_ease-out]"}`}
       >
         {result}
       </span>
@@ -128,103 +132,138 @@ export function ReasoningTrace({
   revealedRowCount,
   swappedRowCount,
   onSettled,
+  settled = false,
 }: {
   output: DiagnosisOutput | null;
   revealedRowCount: number;
   swappedRowCount: number;
   onSettled?: () => void;
+  settled?: boolean; // SID-63: render the trace as a static, completed record
 }) {
   const reduced = usePrefersReducedMotion();
   const isRefuse = output?.verdict === "refuse_out_of_scope";
   const [phase, setPhase] = useState<RefusePhase>("speculative");
 
-  // Refuse transition: scope-swap → (350ms: 200 swap + 150 delay) → collapse
-  // intermediates → (300ms) → done (verdict in). Reduced-motion snaps to done.
+  // Refuse transition: scope-swap → (350ms) collapse intermediates → (650ms) done
+  // (verdict in). All transitions are scheduled in timeout callbacks (never a
+  // synchronous setState in the effect body). Reduced-motion and settled tickets
+  // skip the machine and render "done" directly (computed below).
   useEffect(() => {
-    if (!isRefuse) return;
-    if (reduced) {
-      setPhase("done");
-      return;
-    }
-    setPhase("scopeSwap");
+    if (!isRefuse || settled || reduced) return;
+    const t0 = setTimeout(() => setPhase("scopeSwap"), 0);
     const t1 = setTimeout(() => setPhase("collapse"), 350);
     const t2 = setTimeout(() => setPhase("done"), 650);
     return () => {
+      clearTimeout(t0);
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [isRefuse, reduced]);
+  }, [isRefuse, reduced, settled]);
 
-  // Settle signal → page un-gates the output card. Idempotent.
+  // Settle signal → page un-gates the output card. Idempotent. (Not used in the
+  // static settled mode.) Reduced-motion snaps straight to settled.
   useEffect(() => {
+    if (settled) return;
     if (isRefuse) {
-      if (phase === "done") onSettled?.();
+      if (reduced || phase === "done") onSettled?.();
       return;
     }
     if (output && swappedRowCount >= TOTAL_ROWS) onSettled?.();
-  }, [isRefuse, phase, output, swappedRowCount, onSettled]);
+  }, [settled, isRefuse, reduced, phase, output, swappedRowCount, onSettled]);
 
   // Reduced-motion + still loading: minimal static line.
   if (reduced && !output) {
     return <p className="text-text-secondary">Working…</p>;
   }
 
+  // Settled tickets and reduced-motion render the final state directly.
+  const effPhase: RefusePhase = settled || reduced ? "done" : phase;
+  const effRevealed = settled ? TOTAL_ROWS : revealedRowCount;
+  const effSwapped = settled ? TOTAL_ROWS : swappedRowCount;
+
+  // Header cue — the obvious-at-a-glance distinction between a live and a settled
+  // trace (SID-63): a calm "Reasoning trace" with a check vs a pulsing "Diagnosing…".
+  const stillWorking =
+    !settled &&
+    ((isRefuse && effPhase !== "done") ||
+      (!isRefuse && (!output || effSwapped < TOTAL_ROWS)));
+  const header = settled ? (
+    <p className="mb-sm flex items-center gap-xs text-sm text-text-muted">
+      <Check size={13} aria-hidden /> Reasoning trace
+    </p>
+  ) : stillWorking ? (
+    <p className="mb-sm flex items-center gap-xs text-sm text-text-secondary">
+      <span
+        className="h-2 w-2 rounded-full bg-brand-primary motion-safe:animate-pulse"
+        aria-hidden
+      />
+      Diagnosing…
+    </p>
+  ) : null;
+
   const sk = <Skeleton />;
 
   // ---- REFUSE PATH ----
   if (isRefuse) {
-    const scopeResult = phase === "speculative" ? sk : outOfScopeValue;
+    const scopeResult = effPhase === "speculative" ? sk : outOfScopeValue;
     const showIntermediates =
-      phase === "speculative" || phase === "scopeSwap" || phase === "collapse";
+      effPhase === "speculative" ||
+      effPhase === "scopeSwap" ||
+      effPhase === "collapse";
     return (
-      <ol className="flex flex-col">
-        <TraceRow
-          icon={META[0].icon}
-          label={META[0].label}
-          result={scopeResult}
-          valueKey={phase === "speculative" ? "s" : "v"}
-        />
-        {showIntermediates &&
-          META.slice(1).map((m, j) => {
-            const rowIndex = j + 1; // 1..5
-            if (rowIndex >= revealedRowCount) return null; // not mounted yet
-            return (
-              <TraceRow
-                key={m.label}
-                icon={m.icon}
-                label={m.label}
-                result={sk}
-                valueKey="s"
-                className={
-                  phase === "collapse"
-                    ? "motion-safe:animate-[fadeOut_300ms_ease-out_forwards]"
-                    : ""
-                }
-              />
-            );
-          })}
-        {phase === "done" && (
+      <div>
+        {header}
+        <ol className="flex flex-col">
           <TraceRow
-            icon={<X size={ICON} aria-hidden />}
-            label="Verdict"
-            result="Refused — out of scope"
-            valueKey="v"
+            icon={META[0].icon}
+            label={META[0].label}
+            result={scopeResult}
+            valueKey={effPhase === "speculative" ? "s" : "v"}
+            noAnim={settled}
           />
-        )}
-      </ol>
+          {showIntermediates &&
+            META.slice(1).map((m, j) => {
+              const rowIndex = j + 1; // 1..5
+              if (rowIndex >= effRevealed) return null; // not mounted yet
+              return (
+                <TraceRow
+                  key={m.label}
+                  icon={m.icon}
+                  label={m.label}
+                  result={sk}
+                  valueKey="s"
+                  className={
+                    effPhase === "collapse"
+                      ? "motion-safe:animate-[fadeOut_300ms_ease-out_forwards]"
+                      : ""
+                  }
+                />
+              );
+            })}
+          {effPhase === "done" && (
+            <TraceRow
+              icon={<X size={ICON} aria-hidden />}
+              label="Verdict"
+              result="Refused — out of scope"
+              valueKey="v"
+              noAnim={settled}
+            />
+          )}
+        </ol>
+      </div>
     );
   }
 
   // ---- RESOLVE / ESCALATE PATH ----
   // `output` is already narrowed to resolve|escalate|null here (the refuse path
   // returned above). `data` is non-null only once the result is in; values stay
-  // skeleton until each row's swap turn (i < swappedRowCount).
+  // skeleton until each row's swap turn (i < effSwapped).
   const data = output;
   const top = data?.retrieved_evidence[0];
-  const count = reduced ? (output ? TOTAL_ROWS : 0) : revealedRowCount;
+  const count = reduced ? (output ? TOTAL_ROWS : 0) : effRevealed;
 
   const valueFor = (i: number): ReactNode => {
-    if (!data || i >= swappedRowCount) return sk;
+    if (!data || i >= effSwapped) return sk;
     switch (i) {
       case 0:
         return inScopeValue;
@@ -264,19 +303,23 @@ export function ReasoningTrace({
   const labelFor = (i: number): string => (i < META.length ? META[i].label : "Verdict");
 
   return (
-    <ol className="flex flex-col">
-      {Array.from({ length: count }, (_, i) => {
-        const swapped = !!data && i < swappedRowCount;
-        return (
-          <TraceRow
-            key={labelFor(i)}
-            icon={iconFor(i)}
-            label={labelFor(i)}
-            result={valueFor(i)}
-            valueKey={swapped ? "v" : "s"}
-          />
-        );
-      })}
-    </ol>
+    <div>
+      {header}
+      <ol className="flex flex-col">
+        {Array.from({ length: count }, (_, i) => {
+          const swapped = !!data && i < effSwapped;
+          return (
+            <TraceRow
+              key={labelFor(i)}
+              icon={iconFor(i)}
+              label={labelFor(i)}
+              result={valueFor(i)}
+              valueKey={swapped ? "v" : "s"}
+              noAnim={settled}
+            />
+          );
+        })}
+      </ol>
+    </div>
   );
 }

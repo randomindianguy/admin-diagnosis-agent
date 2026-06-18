@@ -2,22 +2,17 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagnosisInput } from "@/components/diagnosis-input";
-import { DiagnosisOutput } from "@/components/diagnosis-output";
-import { RefusalOutput } from "@/components/refusal-output";
 import { EndUserCard } from "@/components/end-user-card";
 import { UserBubble } from "@/components/user-bubble";
 import { DisclosureBanner } from "@/components/disclosure-banner";
-import { PreviousVerdictRow } from "@/components/previous-verdict-row";
 import { ErrorState } from "@/components/error-state";
-import { ReasoningTrace } from "@/components/reasoning-trace";
+import { TicketFeed } from "@/components/ticket-feed";
+import { TicketDetail, type LiveTrace } from "@/components/ticket-detail";
 import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
-import { ShieldIcon, GitHubIcon, SearchIcon } from "@/components/icons";
+import { ShieldIcon, GitHubIcon } from "@/components/icons";
 import { useDiagnose } from "@/hooks/use-diagnose";
 import { useTraceReveal } from "@/hooks/use-trace-reveal";
 import { useSubmissions, CURRENT_USER, makeId, type Turn } from "@/lib/store";
-import type { DiagnosisOutput as DiagnosisOutputT } from "@/lib/schema";
-
-type Previous = { query: string; verdict: DiagnosisOutputT["verdict"] };
 
 const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
 
@@ -98,10 +93,8 @@ function ScenarioChips({
 
 export default function Home() {
   const [symptom, setSymptom] = useState("");
-  // The query that produced the current result (admin bubble + retry), and the
-  // prior result kept as a slim row for "did rephrasing change anything".
+  // The query that produced the current result (kept for the live retry path).
   const [submitted, setSubmitted] = useState("");
-  const [previous, setPrevious] = useState<Previous | null>(null);
   const [personaView, setPersonaView] = useState<PersonaView>("end-user");
   // The id for the in-flight agent turn. Minted at submit and reused when the
   // turn is archived, so the loading card and the settled card share a key and
@@ -117,24 +110,43 @@ export default function Home() {
   const handleSettled = useCallback(() => setTraceSettled(true), []);
   const diagnose = useDiagnose();
 
-  // Shared submissions store (SID-62). The end-user view drives the ACTIVE
-  // conversation; SID-63's admin feed will read the full list.
+  // Shared submissions store. End-user drives the ACTIVE conversation; the admin
+  // feed reads the full list + a selected ticket (SID-63).
   const submissions = useSubmissions((s) => s.submissions);
   const activeId = useSubmissions((s) => s.activeId);
+  const selectedId = useSubmissions((s) => s.selectedId);
   const startSubmission = useSubmissions((s) => s.startSubmission);
   const addUserTurn = useSubmissions((s) => s.addUserTurn);
   const addAgentTurn = useSubmissions((s) => s.addAgentTurn);
   const resetStore = useSubmissions((s) => s.reset);
+  const seed = useSubmissions((s) => s.seed);
+  const selectTicket = useSubmissions((s) => s.selectTicket);
+  const markAllSeen = useSubmissions((s) => s.markAllSeen);
 
   const active = submissions.find((s) => s.id === activeId) ?? null;
   const turns = active?.turns ?? [];
 
-  // SID-56 Phase 2 (Option A): the two ambiguity refuses are end-user
-  // clarification events — admin sees a compact note, not the trace.
-  const data = diagnose.data;
-  const isAmbiguityRefuse =
-    data?.verdict === "refuse_out_of_scope" &&
-    data.refuse_reason !== "out_of_scope";
+  // `now` anchors the "X ago" timestamps. Computed once via a lazy initializer
+  // (not setState-in-effect); only ever read once the admin feed renders, which
+  // is client-only (personaView defaults to end-user), so no SSR time mismatch.
+  const [now] = useState(() => Date.now());
+  // Pre-seed the demo tickets once on mount (zustand action, guarded internally).
+  useEffect(() => {
+    seed();
+  }, [seed]);
+
+  const unseenCount = submissions.filter((s) => !s.seen).length;
+  const selectedSub = submissions.find((s) => s.id === selectedId) ?? null;
+  // The selected ticket is "live" only while it's the active conversation still
+  // being diagnosed — then the trace animates (SID-59) and the package gates.
+  const selectedIsLive =
+    !!selectedSub && selectedSub.id === activeId && pendingAgentId !== null;
+
+  // Switching to Admin clears the unseen indicator.
+  const handlePersonaChange = (next: PersonaView) => {
+    setPersonaView(next);
+    if (next === "admin") markAllSeen();
+  };
 
   // Auto-scroll the transcript to the newest turn as the conversation grows.
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -161,6 +173,21 @@ export default function Home() {
     [diagnose, addAgentTurn],
   );
 
+  // Live trace state for the in-flight selected ticket (after runDiagnose so the
+  // retry closure can reference it).
+  const live: LiveTrace | undefined = selectedIsLive
+    ? {
+        output: diagnose.data ?? null,
+        isError: diagnose.isError,
+        errorMessage: diagnose.error?.message,
+        onRetry: () => runDiagnose(submitted, pendingAgentId!),
+        revealedRowCount,
+        swappedRowCount,
+        onSettled: handleSettled,
+        packageReady: traceSettled,
+      }
+    : undefined;
+
   function handleSubmit(text: string) {
     const q = text.trim();
     if (q.length === 0 || diagnose.isPending) return;
@@ -184,10 +211,6 @@ export default function Home() {
       query = `Original request: "${firstUser?.text ?? ""}" Clarification: "${q}"`;
     }
 
-    // Demote the current verdict to "previous" before issuing the next one.
-    if (diagnose.data) {
-      setPrevious({ query: submitted, verdict: diagnose.data.verdict });
-    }
     if (!active) startSubmission(CURRENT_USER, q);
     else addUserTurn(q);
 
@@ -206,7 +229,6 @@ export default function Home() {
     setPendingAgentId(null);
     setSymptom("");
     setSubmitted("");
-    setPrevious(null);
     setTraceSettled(false);
   }
 
@@ -226,7 +248,11 @@ export default function Home() {
           <h1 className="text-button">admin-diagnosis-agent</h1>
         </div>
         <div className="flex items-center gap-md">
-          <PersonaToggle value={personaView} onChange={setPersonaView} />
+          <PersonaToggle
+            value={personaView}
+            onChange={handlePersonaChange}
+            unseenCount={unseenCount}
+          />
           <a
             href={REPO_URL}
             target="_blank"
@@ -314,70 +340,31 @@ export default function Home() {
             </div>
           </div>
         </div>
-      ) : !diagnose.isPending && !diagnose.isError && !diagnose.data ? (
-        // ADMIN, empty — review-only (unchanged; SID-63 turns this into a feed).
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-sm px-lg text-center">
-          <SearchIcon className="h-8 w-8 text-text-muted" />
-          <p className="max-w-[420px] text-text-secondary">
-            Submit a request from the End user view — the escalation package will
-            appear here.
-          </p>
-        </div>
-      ) : isAmbiguityRefuse && data ? (
-        // ADMIN, ambiguity refuse — compact note, no trace (SID-56 Phase 2 A).
-        <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-lg">
-          <div className="w-full max-w-[520px] motion-safe:animate-[fadeIn_250ms_ease-out]">
-            <RefusalOutput output={data} />
-          </div>
-        </div>
       ) : (
-        // ADMIN, active — two-pane escalation package (unchanged).
-        <div className="flex min-h-0 flex-1">
-          <section className="flex w-1/2 flex-col gap-lg overflow-auto border-r border-border px-lg py-lg">
-            <div className="flex justify-end">
-              <p className="max-w-[85%] whitespace-pre-wrap rounded-lg bg-brand-primary px-md py-sm text-text-inverse">
-                {submitted}
-              </p>
-            </div>
-            {diagnose.isError ? (
-              <p className="text-text-secondary">
-                Couldn&rsquo;t complete — see the escalation package on the right.
-              </p>
-            ) : diagnose.isPending || diagnose.data ? (
-              <ReasoningTrace
-                key={submitKey}
-                output={diagnose.isPending ? null : (diagnose.data ?? null)}
-                revealedRowCount={revealedRowCount}
-                swappedRowCount={swappedRowCount}
-                onSettled={handleSettled}
+        // ADMIN — ticket system (SID-63): feed (list) + selected ticket (detail),
+        // both reading the shared store. This replaces the diagnose.data-coupled
+        // view (which desynced on reset). Responsive: stacked on mobile, side-by-
+        // side on md+.
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          <aside className="max-h-[40vh] shrink-0 overflow-auto border-b border-border p-md md:max-h-none md:w-[340px] md:border-b-0 md:border-r">
+            <TicketFeed
+              submissions={submissions}
+              selectedId={selectedId}
+              now={now}
+              onSelect={selectTicket}
+            />
+          </aside>
+          <section className="min-w-0 flex-1 overflow-auto p-lg">
+            {selectedSub ? (
+              <TicketDetail
+                key={selectedSub.id}
+                submission={selectedSub}
+                now={now}
+                live={live}
               />
-            ) : null}
-          </section>
-
-          <section className="flex w-1/2 flex-col gap-lg overflow-auto px-lg py-lg">
-            {previous && (
-              <PreviousVerdictRow
-                query={previous.query}
-                verdict={previous.verdict}
-              />
+            ) : (
+              <p className="text-text-secondary">Select a ticket to view it.</p>
             )}
-            {diagnose.isError ? (
-              <ErrorState
-                message={diagnose.error.message}
-                onRetry={() => diagnose.mutate(submitted)}
-              />
-            ) : diagnose.data && traceSettled ? (
-              <div className="flex flex-col gap-md motion-safe:animate-[fadeIn_250ms_ease-out]">
-                <p className="text-sm text-text-muted">
-                  Escalation package — the full investigation an admin receives.
-                </p>
-                {diagnose.data.verdict === "refuse_out_of_scope" ? (
-                  <RefusalOutput output={diagnose.data} />
-                ) : (
-                  <DiagnosisOutput output={diagnose.data} />
-                )}
-              </div>
-            ) : null}
           </section>
         </div>
       )}

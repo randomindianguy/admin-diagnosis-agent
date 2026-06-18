@@ -2,6 +2,7 @@
 
 import { create } from "zustand";
 import type { DiagnosisOutput } from "./schema";
+import { seedSubmissions } from "./seed-submissions";
 
 // Shared submissions store (SID-62; read by SID-63's admin feed).
 //
@@ -44,11 +45,16 @@ export const makeId = (prefix = "t"): string => `${prefix}-${++_seq}`;
 
 type SubmissionsState = {
   submissions: Submission[];
-  activeId: string | null;
+  activeId: string | null; // the end-user's in-progress conversation
+  selectedId: string | null; // the admin's selected ticket (SID-63)
+  seeded: boolean;
   startSubmission: (requester: Requester, firstText: string) => void;
   addUserTurn: (text: string) => void;
   addAgentTurn: (output: DiagnosisOutput, turnId: string) => void;
   reset: () => void;
+  seed: () => void; // pre-load the demo tickets once (SID-63)
+  selectTicket: (id: string) => void; // admin picks a feed ticket
+  markAllSeen: () => void; // clears the unseen indicator (on toggle → Admin)
 };
 
 // Map over submissions, replacing the active one via `fn`.
@@ -67,8 +73,13 @@ function withActive(
 export const useSubmissions = create<SubmissionsState>((set) => ({
   submissions: [],
   activeId: null,
+  selectedId: null,
+  seeded: false,
 
-  // Begin a new thread: append it to the feed and make it active.
+  // Begin a new thread: append it to the feed, make it the active conversation,
+  // AND auto-select it for the admin (SID-63: the selection-change IS the live-
+  // ingestion feature — toggle to Admin and the new ticket is already open). It
+  // starts unseen, so the Admin toggle shows the change indicator.
   startSubmission: (requester, firstText) =>
     set((s) => {
       const id = makeId("sub");
@@ -79,7 +90,11 @@ export const useSubmissions = create<SubmissionsState>((set) => ({
         seen: false,
         turns: [{ id: makeId("u"), role: "user", text: firstText }],
       };
-      return { submissions: [...s.submissions, submission], activeId: id };
+      return {
+        submissions: [...s.submissions, submission],
+        activeId: id,
+        selectedId: id,
+      };
     }),
 
   addUserTurn: (text) =>
@@ -103,4 +118,26 @@ export const useSubmissions = create<SubmissionsState>((set) => ({
   // Reset clears only the ACTIVE pointer — the submission persists in the feed
   // (the live-ingestion seam SID-63 reads). End user returns to the home state.
   reset: () => set({ activeId: null }),
+
+  // Pre-load the demo tickets once, on first mount. createdAt is computed relative
+  // to now so "X ago" reads sensibly. Selects the most recent ticket by default.
+  seed: () =>
+    set((s) => {
+      if (s.seeded) return {};
+      const seeds = seedSubmissions(Date.now());
+      const newest = seeds.reduce<Submission | null>(
+        (a, b) => (!a || b.createdAt > a.createdAt ? b : a),
+        null,
+      );
+      return { submissions: seeds, seeded: true, selectedId: newest?.id ?? null };
+    }),
+
+  selectTicket: (id) => set({ selectedId: id }),
+
+  markAllSeen: () =>
+    set((s) => ({
+      submissions: s.submissions.map((sub) =>
+        sub.seen ? sub : { ...sub, seen: true },
+      ),
+    })),
 }));

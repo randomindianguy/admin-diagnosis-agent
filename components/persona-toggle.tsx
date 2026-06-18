@@ -14,9 +14,11 @@ const OPTIONS: { value: PersonaView; label: string }[] = [
 export function PersonaToggle({
   value,
   onChange,
+  unseenCount = 0,
 }: {
   value: PersonaView;
   onChange: (next: PersonaView) => void;
+  unseenCount?: number; // SID-63: new tickets the admin hasn't seen
 }) {
   return (
     <div
@@ -26,6 +28,10 @@ export function PersonaToggle({
     >
       {OPTIONS.map((o) => {
         const active = o.value === value;
+        // Change indicator on the Admin tab (SID-63 Q6): neutral dot, or a count
+        // badge if >1 unseen. Neutral (text-primary), not brand — keeps verdict
+        // color semantics intact.
+        const showIndicator = o.value === "admin" && unseenCount > 0;
         return (
           <button
             key={o.value}
@@ -33,13 +39,27 @@ export function PersonaToggle({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={`inline-flex min-h-[44px] items-center rounded-sm px-md py-xs text-body transition-colors ${
+            className={`inline-flex min-h-[44px] items-center gap-xs rounded-sm px-md py-xs text-body transition-colors ${
               active
                 ? "bg-background-secondary text-text-primary"
                 : "text-text-secondary hover:text-text-primary"
             }`}
           >
             {o.label}
+            {showIndicator &&
+              (unseenCount > 1 ? (
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-pill bg-text-primary px-[3px] text-[10px] font-bold text-background-primary">
+                  {unseenCount}
+                </span>
+              ) : (
+                <span
+                  className="h-2 w-2 rounded-full bg-text-primary"
+                  aria-hidden
+                />
+              ))}
+            {showIndicator && (
+              <span className="sr-only">({unseenCount} new)</span>
+            )}
           </button>
         );
       })}

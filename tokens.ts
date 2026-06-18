@@ -58,7 +58,8 @@ export const tokens = {
     text: {
       primary: "#EDEDED",            // near-white body / headings
       secondary: "#A1A1AA",          // muted
-      muted: "#71717A",              // faint / eyebrow
+      muted: "#8A8A95",              // faint / eyebrow — lightened for WCAG AA
+                                     // (SID-64: ~5:1 on bg + cards; was #71717A ≈ 3.6–4.0:1)
     },
     border: "#2A2A2E",
   },

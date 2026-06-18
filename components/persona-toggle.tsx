@@ -33,7 +33,7 @@ export function PersonaToggle({
             role="tab"
             aria-selected={active}
             onClick={() => onChange(o.value)}
-            className={`rounded-sm px-md py-xs text-body transition-colors ${
+            className={`inline-flex min-h-[44px] items-center rounded-sm px-md py-xs text-body transition-colors ${
               active
                 ? "bg-background-secondary text-text-primary"
                 : "text-text-secondary hover:text-text-primary"

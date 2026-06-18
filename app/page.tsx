@@ -87,7 +87,7 @@ function ScenarioChips({
           type="button"
           onClick={() => onPick(s.query)}
           disabled={disabled}
-          className="rounded-pill border border-border bg-background-secondary px-md py-xs text-text-secondary transition-colors hover:border-brand-primary hover:text-text-primary disabled:opacity-50"
+          className="inline-flex min-h-[44px] items-center rounded-pill border border-border bg-background-secondary px-md py-xs text-text-secondary transition-colors hover:border-brand-primary hover:text-text-primary disabled:opacity-50"
         >
           {s.label}
         </button>
@@ -222,7 +222,8 @@ export default function Home() {
       <header className="flex items-center justify-between border-b border-border px-lg py-md">
         <div className="flex items-center gap-sm text-text-primary">
           <ShieldIcon className="h-6 w-6 text-brand-primary" />
-          <span className="text-button">admin-diagnosis-agent</span>
+          {/* Page heading (SID-64 a11y: gives the page an h1 — same visual). */}
+          <h1 className="text-button">admin-diagnosis-agent</h1>
         </div>
         <div className="flex items-center gap-md">
           <PersonaToggle value={personaView} onChange={setPersonaView} />
@@ -231,7 +232,7 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label="View source on GitHub"
-            className="text-text-secondary transition-colors hover:text-text-primary"
+            className="inline-flex h-[44px] w-[44px] items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
           >
             <GitHubIcon className="h-5 w-5" />
           </a>
@@ -249,7 +250,14 @@ export default function Home() {
             {/* Scroll region above the input. */}
             <div className="flex min-h-0 flex-1 flex-col overflow-auto px-md pt-lg">
               {active ? (
-                <div className="flex flex-col gap-md">
+                // aria-live so screen readers announce new turns + the verdict
+                // as the conversation grows (SID-64 a11y).
+                <div
+                  role="log"
+                  aria-live="polite"
+                  aria-relevant="additions"
+                  className="flex flex-col gap-md"
+                >
                   {turns.map((t) =>
                     t.role === "user" ? (
                       <UserBubble key={t.id} text={t.text} />
@@ -292,7 +300,7 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={handleReset}
-                  className="self-start text-sm text-text-secondary transition-colors hover:text-text-primary"
+                  className="inline-flex min-h-[44px] items-center self-start text-sm text-text-secondary transition-colors hover:text-text-primary"
                 >
                   + New request
                 </button>

@@ -23,7 +23,7 @@
   --color-bg-secondary: #18181b;
   --color-text-primary: #ededed;
   --color-text-secondary: #a1a1aa;
-  --color-text-muted: #71717a;
+  --color-text-muted: #8a8a95; /* SID-64: lightened for WCAG AA (was #71717a) */
   --color-border: #2a2a2e;
 }
 

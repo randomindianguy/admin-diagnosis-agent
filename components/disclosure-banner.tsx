@@ -9,8 +9,7 @@ export function DisclosureBanner() {
       <Info size={16} aria-hidden className="mt-[2px] shrink-0" />
       <p>
         End-user view — what the person who&rsquo;s blocked sees. Toggle to Admin
-        for the escalation package: the full gate-by-gate investigation an admin
-        receives.
+        for what the support team sees when handling your request.
       </p>
     </div>
   );

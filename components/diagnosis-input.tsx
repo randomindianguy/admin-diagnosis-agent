@@ -33,6 +33,7 @@ export function DiagnosisInput({
         onKeyDown={handleKeyDown}
         disabled={disabled}
         rows={3}
+        aria-label="Describe the access problem you're having"
         placeholder={"Describe what you're trying to open and what's happening — e.g. “I can't open the Q3 revenue folder”"}
         className="w-full resize-none rounded-md border border-border bg-background-primary p-md text-body text-text-primary placeholder:text-text-muted focus:border-brand-primary focus:outline-none disabled:opacity-50"
       />
@@ -41,7 +42,7 @@ export function DiagnosisInput({
           type="button"
           onClick={onSubmit}
           disabled={!canSubmit}
-          className="rounded-pill bg-brand-primary px-lg py-sm text-button text-text-inverse transition-opacity disabled:opacity-40"
+          className="inline-flex min-h-[44px] items-center justify-center rounded-pill bg-brand-primary px-lg py-sm text-button text-text-inverse transition-opacity disabled:opacity-40"
         >
           Send
         </button>

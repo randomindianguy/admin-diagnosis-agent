@@ -16,15 +16,16 @@ export function TicketFeed({
 }) {
   const sorted = [...submissions].sort((a, b) => b.createdAt - a.createdAt);
   return (
-    <div className="flex flex-col gap-sm">
+    <div role="list" aria-label="Tickets" className="flex flex-col gap-sm">
       {sorted.map((s) => (
-        <TicketCard
-          key={s.id}
-          submission={s}
-          selected={s.id === selectedId}
-          now={now}
-          onSelect={() => onSelect(s.id)}
-        />
+        <div role="listitem" key={s.id}>
+          <TicketCard
+            submission={s}
+            selected={s.id === selectedId}
+            now={now}
+            onSelect={() => onSelect(s.id)}
+          />
+        </div>
       ))}
     </div>
   );

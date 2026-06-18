@@ -89,7 +89,13 @@ export function TicketDetail({
         )}
       </div>
 
-      {/* Escalation package. */}
+      {/* Escalation package. aria-live ONLY for the in-flight ticket (SID-63
+          harden) so a screen reader announces Diagnosing → verdict; settled
+          tickets are static and need no live region. */}
+      <div
+        aria-live={isLive ? "polite" : undefined}
+        className="flex flex-col gap-lg"
+      >
       {live?.isError ? (
         <ErrorState
           message={live.errorMessage ?? "Something went wrong."}
@@ -122,6 +128,7 @@ export function TicketDetail({
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -2,6 +2,10 @@
 
 **Tags:** nested-group inheritance, access propagation, subgroup membership, membership-level checks
 
+## Symptom
+
+A user cannot open a folder, file, or shared resource in Drive that their team is supposed to have access to. They are a member of the team and appear under the team's group, but still get "permission denied" or no access when they try to open it. The team's group does have a grant on the resource, which makes the block surprising.
+
 ## The default behavior
 
 When a group grants access to a resource, that grant applies to **direct members** of the group. By default, the grant does **not** propagate down to members of nested subgroups.

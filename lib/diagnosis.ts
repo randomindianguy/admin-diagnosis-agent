@@ -60,13 +60,18 @@ export type DiagnosisJudgment =
 const RESOLVE_TOOL: Anthropic.Tool = {
   name: "resolve",
   description:
-    "Submit a resolution when the evidence clearly supports one of the known canonical root causes. " +
-    "Use this ONLY when a canonical mechanism plainly matches. If no canonical root_cause fits, do not " +
-    "use this tool — use `escalate` instead. " +
-    "Use ONLY for diagnoses where you've identified a specific access-failure mechanism from the canonical " +
-    "root_cause list. For inquiry questions (who has access, what groups), recommendation questions (what " +
-    "should we do), or anything else in-scope but not a failure-cause diagnosis, escalate with a clear reason " +
-    "instead — do not resolve.",
+    "Submit a resolution when the evidence clearly supports exactly one canonical root_cause and you can give " +
+    "the user a confident, complete answer they (or the resource owner) can act on WITHOUT an admin having to " +
+    "provision new access. Resolve covers three answer shapes, each mapped to a root_cause:\n" +
+    "  • a confident diagnosis of why EXISTING access is failing, with the fix (e.g. " +
+    "nested_subgroup_inheritance_gap);\n" +
+    "  • the user ALREADY has access through a group they are in (existing_group_access) — confirm it and point " +
+    "them to it;\n" +
+    "  • access is owner-controlled and the user has no group path, so they request it from the owner " +
+    "(resource_owner_routing).\n" +
+    "If no canonical root_cause fits, or granting the access requires an admin to provision something new " +
+    "(e.g. adding the user to a group), do NOT resolve — use `escalate`. Never invent a root_cause to force a " +
+    "resolve.",
   input_schema: {
     type: "object",
     properties: {
@@ -171,21 +176,39 @@ const SYSTEM_PROMPT = [
   "and resources), and the most relevant runbook page. Work strictly from these facts. Do not invent",
   "memberships, grants, or group relationships that are not in the status picture.",
   "",
+  "The request is first-person from the end user. When the message names no one else, the person speaking",
+  "(\"I\"/\"me\") is the user shown in the status picture — reason about THAT user's memberships and access. If",
+  "the message names someone else (e.g. a colleague), reason about the named person instead.",
+  "",
   "Choose exactly one action:",
-  "- Call `resolve` when the status picture and runbook clearly point to one canonical root cause for an",
-  "  access failure.",
+  "- Call `resolve` when you can give the user a confident, complete answer they (or the resource owner) can",
+  "  act on WITHOUT an admin provisioning new access. There are three resolve shapes, each with a root_cause:",
+  "    • The user ALREADY has access — they are a direct member of a group the resource grants to. Confirm it",
+  "      and point them to the resource. root_cause = existing_group_access.",
+  "    • Access is owner-controlled — the resource has an owner and the user has NO group that grants it, so",
+  "      adding them to a group would not help. Tell them who owns it and to request access from the owner.",
+  "      root_cause = resource_owner_routing.",
+  "    • Existing access is failing for a diagnosable reason — identify the mechanism and the fix (e.g.",
+  "      nested_subgroup_inheritance_gap). This holds even when applying the fix is an admin's job, because",
+  "      the value is the confident diagnosis and correction.",
   "- Call `escalate` when no canonical root cause matches, when the evidence is insufficient to be",
-  "  confident, OR for in-scope inquiry (b) and recommendation (c) requests. For inquiry and",
-  "  recommendation requests, escalate with a clear summary of what the user asked and route to a",
-  "  human reviewer — explain that those question types are handled by a person, not this assistant,",
-  "  in the current setup. Do NOT fake-resolve them by picking a root_cause that does not fit.",
+  "  confident, when granting the access requires an admin to PROVISION something new (e.g. the user needs to",
+  "  be added to a group they are not yet in — common for a new hire who lacks their team's baseline group),",
+  "  OR for in-scope inquiry (b) and recommendation (c) requests. For a provisioning escalate, route to the",
+  "  identity team and hand off a complete package: who the user is, what they are blocked from, why (the",
+  "  resource requires a group they are not in), and the recommended fix (add them to the specific group).",
+  "  For inquiry and recommendation requests, escalate with a clear summary and route to a human reviewer —",
+  "  explain that those question types are handled by a person in the current setup. Do NOT fake-resolve any",
+  "  of these by picking a root_cause that does not fit.",
   "- Call `refuse` when you cannot responsibly produce a diagnosis. Refuse covers three SIBLING cases —",
   "  classify which one with refuse_reason (they are distinct, not degrees of severity):",
   "    • out_of_scope — the request does not fit one of the three in-scope shapes above at all. Omit",
   "      missing_info; the user-facing perimeter copy is authored separately and shown automatically.",
   "    • resource_ambiguity — the request is in scope, but you cannot tell WHICH resource or account it",
-  "      concerns (e.g. \"I can't open the dashboard\" when the status picture shows more than one, or none",
-  "      that clearly matches). Set missing_info to a short direct question naming what you need.",
+  "      concerns (e.g. \"I can't open the dashboard\" when the status picture shows more than one resource",
+  "      that could be meant, or none that clearly matches). If the user names a resource generically and",
+  "      more than one resource could fit, refuse and ask which one — do NOT pick one, even if the user",
+  "      already has access to one of the candidates. Set missing_info to a short direct question.",
   "    • intent_ambiguity — the request is in scope, but you cannot tell WHAT the user was trying to do",
   "      (e.g. \"my access broke yesterday\" with no action named). Set missing_info to a short direct",
   "      question asking what they were trying to do.",
@@ -205,6 +228,17 @@ const SYSTEM_PROMPT = [
   "request contains a mistaken claim (e.g. about which group they are in), correct it explicitly by",
   "naming both what they believed and what is actually true. Write in plain language for the person who",
   "is blocked — explain the cause and what needs to happen to unblock them.",
+  "",
+  "Shape every resolve diagnosis_text as three beats, in order:",
+  "  1. Work signal — open with \"Checked your access —\" so the user knows you actually looked.",
+  "  2. The answer — the single most useful fact: that they already have it (and through which group), or",
+  "     who owns the resource, or the specific mechanism and fix.",
+  "  3. The action — the one concrete next step: open it / use the direct link, or request access from the",
+  "     named owner. Keep it to what you can support from the facts; do not invent links, channels, or names.",
+  "",
+  "When you escalate, do NOT promise a specific turnaround time or deadline — you do not know the admin's",
+  "SLA. Say a person will follow up, not when. The end user is told it was submitted; the detailed who/what/",
+  "why/recommendation belongs in diagnosis_text for the admin's package.",
   "",
   "Write diagnosis_text as plain prose — complete sentences in short paragraphs. Do NOT use any markdown",
   "formatting: no asterisks for bold or emphasis, no # headers, no bullet or numbered lists.",
@@ -243,7 +277,8 @@ function formatStatusFacts(status: StatusFacts): string {
     const grants = r.grants
       .map((grant) => `"${name(grant.principal)}" = ${grant.level}`)
       .join("; ");
-    lines.push(`- Resource "${r.name}" grants: ${grants || "(none)"}`);
+    const ownerNote = r.owner ? `, owned by ${r.owner}` : "";
+    lines.push(`- Resource "${r.name}" grants: ${grants || "(none)"}${ownerNote}`);
   }
   return lines.join("\n");
 }

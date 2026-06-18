@@ -9,22 +9,45 @@
       "kind": "operator_message",
       "text": "Maya on the data team can't open the 'Q3 Revenue Models' folder in Drive. She's in the data-team group, which I checked has access. Can you look?"
     },
+    "current_user": "user:alex.chen",
     "status_picture": {
       "users": [
         {
           "id": "user:maya.r",
           "name": "Maya R.",
           "direct_group_memberships": ["group:data-team-ml"]
+        },
+        {
+          "id": "user:alex.chen",
+          "name": "Alex Chen",
+          "direct_group_memberships": ["group:analytics-team"]
         }
       ],
       "groups": [
         { "id": "group:data-team", "name": "data-team" },
-        { "id": "group:data-team-ml", "name": "data-team-ml", "parent": "group:data-team" }
+        { "id": "group:data-team-ml", "name": "data-team-ml", "parent": "group:data-team" },
+        { "id": "group:analytics-team", "name": "analytics-team" }
       ],
       "resources": [
         {
           "id": "resource:q3-revenue-models",
           "name": "Q3 Revenue Models",
+          "grants": [{ "principal": "group:data-team", "level": "viewer" }]
+        },
+        {
+          "id": "resource:analytics-dashboard",
+          "name": "analytics dashboard",
+          "grants": [{ "principal": "group:analytics-team", "level": "viewer" }]
+        },
+        {
+          "id": "resource:q3-strategy-plan",
+          "name": "Q3 strategy plan",
+          "grants": [],
+          "owner": "the Strategy team"
+        },
+        {
+          "id": "resource:data-warehouse-dashboards",
+          "name": "data warehouse dashboards",
           "grants": [{ "principal": "group:data-team", "level": "viewer" }]
         }
       ]

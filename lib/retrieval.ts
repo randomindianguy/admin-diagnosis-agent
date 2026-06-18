@@ -161,6 +161,10 @@ interface StatusResource {
   id: string;
   name: string;
   grants: { principal: string; level: string }[];
+  // SID-56 Phase 3: optional owner metadata. When a resource is owner-controlled
+  // and the user has no group path to it, the resolve answer routes them to the
+  // owner (resource_owner_routing) rather than diagnosing a failure.
+  owner?: string;
 }
 interface StatusPicture {
   users: StatusUser[];
@@ -178,11 +182,20 @@ export interface StatusFacts {
 // Chunk-2 simplification: one scenario (Seed 1), so the status picture is read
 // from scenario.json. Scenario selection becomes a real concern when chunks 3–6
 // add more seeds; not chunk-2's call.
-function loadStatusPicture(): StatusPicture {
+//
+// SID-56 Phase 3: scenario.json now also carries a `current_user` — the logged-in
+// end user. Messages written first-person without naming anyone ("I need access
+// to the analytics dashboard") resolve to this user; a message that names someone
+// else (e.g. "Maya") still binds to them. No auth in this demo; the current user
+// is fixed in the scenario file.
+function loadScenario(): { picture: StatusPicture; currentUserId?: string } {
   const scenario = JSON.parse(readFileSync(SCENARIO_PATH, "utf8")) as {
-    setup: { status_picture: StatusPicture };
+    setup: { status_picture: StatusPicture; current_user?: string };
   };
-  return scenario.setup.status_picture;
+  return {
+    picture: scenario.setup.status_picture,
+    currentUserId: scenario.setup.current_user,
+  };
 }
 
 function norm(s: string): string {
@@ -196,15 +209,25 @@ function norm(s: string): string {
 // Channel 2: find entities the symptom references, then graph-expand so the
 // truth the operator missed surfaces.
 export function fetchStatus(symptom: string): StatusFacts {
-  const picture = loadStatusPicture();
+  const { picture, currentUserId } = loadScenario();
   const haystack = norm(symptom);
 
   // 1. Users referenced by full name or a significant name token ("Maya").
-  const matchedUsers = picture.users.filter((u) => {
+  const named = picture.users.filter((u) => {
     const full = norm(u.name);
     if (haystack.includes(full)) return true;
     return full.split(" ").some((tok) => tok.length > 2 && haystack.includes(tok));
   });
+
+  // SID-56 Phase 3: if the message names no one, it's the logged-in current user
+  // speaking ("I need access to…"). Fall back to them so first-person requests
+  // have an identity to reason about. A message that DID name someone keeps that
+  // binding (so Maya's scenario is unaffected).
+  const currentUser =
+    named.length === 0 && currentUserId
+      ? picture.users.filter((u) => u.id === currentUserId)
+      : [];
+  const matchedUsers = named.length > 0 ? named : currentUser;
 
   // 2. Graph-expand from matched users to the groups they're ACTUALLY in — e.g.
   //    data-team-ml, the nested subgroup the operator never named.
@@ -232,13 +255,50 @@ export function fetchStatus(symptom: string): StatusFacts {
     }
     frontier = next;
   }
-  const groups = picture.groups.filter((g) => groupIds.has(g.id));
+  // 5. Resources the symptom references.
+  //    - If the message names a resource by its full name, that reference is
+  //      unambiguous: surface that resource (plus any the user's groups grant, so
+  //      "you already have it" can be confirmed).
+  //    - If it names NO resource by full name (a generic "the dashboard"), surface
+  //      the whole catalog so the model can SEE whether more than one resource
+  //      could be meant — that's what lets it refuse resource_ambiguity instead of
+  //      silently picking the one the user happens to have access to.
+  const nameMatched = picture.resources.filter((r) =>
+    haystack.includes(norm(r.name)),
+  );
+  const resources =
+    nameMatched.length > 0
+      ? picture.resources.filter(
+          (r) =>
+            haystack.includes(norm(r.name)) ||
+            r.grants.some((grant) => groupIds.has(grant.principal)),
+        )
+      : [...picture.resources];
 
-  // 5. Resources the symptom names, OR that grant to any collected group.
-  const resources = picture.resources.filter((r) => {
-    if (haystack.includes(norm(r.name))) return true;
-    return r.grants.some((grant) => groupIds.has(grant.principal));
-  });
+  // 6. (SID-56 Phase 3) Surface the groups a matched resource grants to, even if
+  //    the user isn't in them — so "this resource requires data-team, and you're
+  //    not in it" reads with real group names (the onboarding-gap escalate), not
+  //    raw ids. Pull in their parent chains too for completeness.
+  for (const r of resources) {
+    for (const grant of r.grants) {
+      if (picture.groups.some((g) => g.id === grant.principal)) {
+        groupIds.add(grant.principal);
+      }
+    }
+  }
+  frontier = [...groupIds];
+  while (frontier.length) {
+    const next: string[] = [];
+    for (const id of frontier) {
+      const g = picture.groups.find((x) => x.id === id);
+      if (g?.parent && !groupIds.has(g.parent)) {
+        groupIds.add(g.parent);
+        next.push(g.parent);
+      }
+    }
+    frontier = next;
+  }
+  const groups = picture.groups.filter((g) => groupIds.has(g.id));
 
   return { users: matchedUsers, groups, resources };
 }

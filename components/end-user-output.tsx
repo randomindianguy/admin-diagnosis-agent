@@ -134,7 +134,9 @@ function content(output: DiagnosisOutput): CardContent {
       body:
         `I've sent your ${team} the full investigation — what you're trying to reach, your current access, and what I found. ` +
         "You won't need to re-explain it.",
-      nextStep: "Watch for a follow-up from them — typically within 1 business day.",
+      // Honesty (SID-56 Phase 3): no time commitment — the agent doesn't know the
+      // admin's SLA. Vague-but-true beats a number it can't stand behind.
+      nextStep: "They'll follow up with you — you'll hear back soon.",
     };
   }
   // refuse — three SIBLING shapes (SID-56 Phase 2), all two-dot timelines because

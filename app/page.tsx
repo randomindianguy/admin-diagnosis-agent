@@ -28,16 +28,32 @@ const GREETING =
   "permissions, then get you unblocked, tell you what's missing, or hand it to " +
   "your admin with the full picture. Try this:";
 
-// SID-56 — end-user scenarios spanning the verdict shapes for eyes-on. The query
-// self-identifies (no auth in this demo, so identity comes from the message).
-// Phase 2 adds the two ambiguity refuses (resource / intent) + an out-of-scope
-// one; the full shift-2 voice pass expands this set.
+// SID-56 — end-user scenarios spanning every verdict shape for eyes-on. Most are
+// first-person from the logged-in user (Alex, per scenario.json current_user);
+// the Maya one names a colleague, so it binds to Maya. Phase 3 adds two resolves
+// (already-has-it, owner-routing) + an onboarding escalate.
 const SCENARIOS: { label: string; query: string }[] = [
   {
-    // resolve
+    // resolve — confident diagnosis (nested-subgroup inheritance gap)
     label: "I can't open a shared folder",
     query:
       "I'm Maya on the data team and I can't open the Q3 Revenue Models folder in Drive.",
+  },
+  {
+    // resolve — already has access via group (existing_group_access)
+    label: "I need the analytics dashboard",
+    query: "I need access to the analytics dashboard.",
+  },
+  {
+    // resolve — owner-controlled, route to owner (resource_owner_routing)
+    label: "I can't open the Q3 strategy plan",
+    query: "I can't open the Q3 strategy plan.",
+  },
+  {
+    // escalate — onboarding provisioning gap (route to identity team)
+    label: "New hire needs data warehouse",
+    query:
+      "I joined the analytics team last week and need access to the data warehouse dashboards.",
   },
   {
     // resource_ambiguity (REFUSE 1) — which dashboard?

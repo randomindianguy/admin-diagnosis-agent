@@ -73,7 +73,7 @@ export type DiagnosisOutput =
   | {
       // Refuse skips the gate (gate-signals.ts short-circuit) — no evidence,
       // signals, or diagnosis_text. Rendered by components/refusal-output.tsx
-      // (admin) and components/end-user-output.tsx (end user). SID-56 Phase 2
+      // (admin) and components/end-user-card.tsx (end user). SID-56 Phase 2
       // widened this additively: `refuse_reason` classifies the three shapes;
       // `missing_info` carries the model's clarification ask for the two
       // ambiguity reasons (absent for out_of_scope — nothing is missing, it's

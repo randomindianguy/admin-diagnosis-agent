@@ -1,15 +1,22 @@
-import { Fragment, type ReactNode } from "react";
-import { Check, AlertTriangle, Info } from "lucide-react";
+"use client";
+
+import { useEffect, useState, type ReactNode } from "react";
+import { Check, AlertTriangle, Info, Loader2 } from "lucide-react";
 import type { DiagnosisOutput } from "@/lib/schema";
 import { OutcomeCard } from "./outcome-card";
+import { usePrefersReducedMotion } from "@/hooks/use-trace-reveal";
 
-// End-user view (SID-49 B). Status-page timeline shape — what the end user sees
-// as a ticket update once the diagnosis lands. JTBD: avoid helplessness (P6) —
-// confirmation it was processed + an honest timeline + the next step.
+// End-user card (SID-49 B; SID-59). ONE persistent card that spans the whole
+// submitted lifecycle — it renders the loading state and the verdict from the
+// SAME subtree, so the Filed → Checked → [third] timeline progresses DURING the
+// wait and then resolves in place rather than appearing retroactively with the
+// answer. Mounted keyed by submitKey in the page, so it persists across
+// loading→verdict (continuity) and resets per submission.
 //
-// HONESTY LINE (load-bearing): at T+0 the agent knows what the SYSTEM did and
-// what's queued — it does NOT know what humans downstream have done. No copy here
-// claims downstream-actor behavior; downstream is always future/conditional.
+// HONESTY LINE (load-bearing): the timeline's third dot reflects ACTUAL state.
+// Resolve/refuse fill it on the real API return; escalate leaves it HOLLOW —
+// the agent's work is done, but the admin's hasn't started (a genuinely-future
+// state we don't pretend is complete).
 
 type Accent = "brand" | "warning" | "muted";
 
@@ -39,49 +46,42 @@ function ownerLabel(owner: string): string {
   return map[owner] ?? owner;
 }
 
-// --- Disclosure banner (B.4) — end-user only. Tells the HM the simplification is
-// JTBD-driven, not role-based gating. ---
-function DisclosureBanner() {
-  return (
-    <div className="flex items-start gap-sm rounded-md border border-border bg-background-secondary px-md py-sm text-sm text-text-secondary">
-      <Info size={16} aria-hidden className="mt-[2px] shrink-0" />
-      <p>
-        End-user view — what the person who&rsquo;s blocked sees. Toggle to Admin
-        for the escalation package: the full gate-by-gate investigation an admin
-        receives.
-      </p>
-    </div>
-  );
-}
-
-// --- Timeline (B.5) — lit dots filled in the verdict accent; unlit dots hollow.
-// Fixed-width columns + fixed connectors so a 2-dot (refuse) timeline is visibly
-// SHORTER than a 3-dot one (natural mapping: fewer queued steps = shorter). ---
+// --- Timeline — Filed → Checked → [third] across every verdict (SID-59). Lit
+// dots fill in the verdict accent; the unlit dot is a hollow ring. The dot is a
+// SINGLE element whose fill animates (motion-safe:transition-colors), so the
+// third dot fills in place on the API return. Keyed by INDEX, not label, so a
+// dot persists across its label changing (loading "" → verdict label) and keeps
+// its transition. ---
 function Dot({ lit, accent }: { lit: boolean; accent: Accent }) {
-  if (!lit) {
-    return (
-      <span className="h-2 w-2 shrink-0 rounded-full border border-text-muted" />
-    );
-  }
   const fill =
     accent === "brand"
       ? "bg-brand-primary"
       : accent === "warning"
         ? "bg-state-warning"
         : "bg-text-muted";
-  return <span className={`h-[10px] w-[10px] shrink-0 rounded-full ${fill}`} />;
+  return (
+    <span
+      className={`h-[10px] w-[10px] shrink-0 rounded-full border motion-safe:transition-colors motion-safe:duration-300 ${
+        lit ? `${fill} border-transparent` : "border-text-muted bg-transparent"
+      }`}
+    />
+  );
 }
 
 function Timeline({ steps, accent }: { steps: Step[]; accent: Accent }) {
   return (
     <div className="flex items-start">
       {steps.map((s, i) => (
-        <Fragment key={s.label}>
+        // Index key (not label): the third dot keeps its identity when its label
+        // resolves from "" (loading) to the verdict label, so the fill animates.
+        <div key={i} className="flex items-start">
           <div className="flex w-24 flex-col items-center gap-xs">
             <Dot lit={s.lit} accent={accent} />
-            <span className="text-center text-sm leading-tight text-text-secondary">
-              {s.label}
-            </span>
+            {s.label && (
+              <span className="text-center text-sm leading-tight text-text-secondary">
+                {s.label}
+              </span>
+            )}
             {s.chip && (
               <span className="rounded-pill border border-border px-sm py-[1px] text-sm text-text-secondary">
                 {s.chip}
@@ -91,16 +91,17 @@ function Timeline({ steps, accent }: { steps: Step[]; accent: Accent }) {
           {i < steps.length - 1 && (
             <span className="mt-[5px] h-px w-8 shrink-0 bg-border" />
           )}
-        </Fragment>
+        </div>
       ))}
     </div>
   );
 }
 
+// --- Verdict content. Every verdict is Filed → Checked → [third] (SID-59); the
+// third dot fills for resolve/refuse and stays hollow for escalate. ---
 function content(output: DiagnosisOutput): CardContent {
   if (output.verdict === "resolve") {
     // SID-56: resolve = the user gets their answer directly. No ticket created.
-    // The body is the agent's actual finding (diagnosis_text), addressed to them.
     return {
       accent: "brand",
       pillIcon: <Check size={16} aria-hidden />,
@@ -119,6 +120,7 @@ function content(output: DiagnosisOutput): CardContent {
   }
   if (output.verdict === "escalate") {
     // SID-56: escalate = ticket created, full evidence attached for the admin.
+    // The third dot stays HOLLOW — the admin's review is genuinely future.
     const team = ownerLabel(output.owner);
     return {
       accent: "warning",
@@ -139,9 +141,9 @@ function content(output: DiagnosisOutput): CardContent {
       nextStep: "They'll follow up with you — you'll hear back soon.",
     };
   }
-  // refuse — three SIBLING shapes (SID-56 Phase 2), all two-dot timelines because
-  // nothing is queued downstream (honest signal). The two ambiguity reasons are
-  // clarify-and-resubmit (ball in the user's court); out_of_scope is terminal.
+  // refuse — three SIBLING shapes (SID-56 Phase 2). SID-59 normalizes all three to
+  // the Filed → Checked → [third] timeline; the third dot fills (the agent's work
+  // concluded with a clear outcome the user can act on).
   if (output.refuse_reason === "resource_ambiguity") {
     return {
       accent: "muted",
@@ -151,6 +153,7 @@ function content(output: DiagnosisOutput): CardContent {
       // Beat 1 — authored lead; Beat 2 (body) = the model's missing_info ask.
       headline: "Checked your access — before I can be sure, I need a bit more.",
       steps: [
+        { lit: true, label: "Filed" },
         { lit: true, label: "Checked" },
         { lit: true, label: "Needs detail" },
       ],
@@ -168,6 +171,7 @@ function content(output: DiagnosisOutput): CardContent {
       pillLabel: "Need a bit more",
       headline: "Need a bit more before I can dig in.",
       steps: [
+        { lit: true, label: "Filed" },
         { lit: true, label: "Checked" },
         { lit: true, label: "Needs detail" },
       ],
@@ -186,7 +190,8 @@ function content(output: DiagnosisOutput): CardContent {
     headline: "This needs a different team.",
     steps: [
       { lit: true, label: "Filed" },
-      { lit: true, label: "Not handled" },
+      { lit: true, label: "Checked" },
+      { lit: true, label: "Out of scope" },
     ],
     body:
       "Your question is outside what this system can diagnose. Nothing has been " +
@@ -195,14 +200,50 @@ function content(output: DiagnosisOutput): CardContent {
   };
 }
 
-export function EndUserOutput({ output }: { output: DiagnosisOutput }) {
-  const c = content(output);
+// --- Loading content. Same card shell, no verdict yet: Filed lights at submit,
+// Checked at ~400ms; the third dot is hollow with no label (we don't know the
+// verdict). The synchronized loading text rides in the headline. ---
+type LoadingPhase = "filed" | "checked";
+
+function loadingContent(phase: LoadingPhase): CardContent {
+  return {
+    accent: "brand",
+    pillIcon: <Loader2 size={16} aria-hidden className="motion-safe:animate-spin" />,
+    pillClass: "border border-border bg-background-primary text-text-secondary",
+    pillLabel: "Working",
+    headline:
+      phase === "filed" ? "Filing your request…" : "Checking your access…",
+    steps: [
+      { lit: true, label: "Filed" },
+      { lit: phase === "checked", label: "Checked" },
+      { lit: false, label: "" }, // third resolves on the verdict
+    ],
+    body: "",
+    nextStep: "",
+  };
+}
+
+export function EndUserCard({ output }: { output: DiagnosisOutput | null }) {
+  const reduced = usePrefersReducedMotion();
+  // Time-paced loading: Filed at mount, Checked ~400ms later. Reduced-motion
+  // snaps straight to "checked" (both lit, no stagger) via the initial state —
+  // no setState needed. The card remounts per submission (keyed by submitKey in
+  // the page), so the initial phase is correct each time and the timer re-arms.
+  const [phase, setPhase] = useState<LoadingPhase>(reduced ? "checked" : "filed");
+  useEffect(() => {
+    if (reduced) return; // already "checked" from the initializer
+    const t = setTimeout(() => setPhase("checked"), 400);
+    return () => clearTimeout(t);
+  }, [reduced]);
+
+  const c = output ? content(output) : loadingContent(phase);
+  const settled = output !== null;
+
   return (
     <div className="flex flex-col gap-md">
-      <DisclosureBanner />
       <OutcomeCard>
         <div className="flex flex-col gap-lg">
-          {/* Status pill — top-left. */}
+          {/* Status pill — top-left. Morphs from the loading pill to the verdict. */}
           <div>
             <span
               className={`inline-flex items-center gap-xs rounded-pill px-md py-xs ${c.pillClass}`}
@@ -212,17 +253,24 @@ export function EndUserOutput({ output }: { output: DiagnosisOutput }) {
             </span>
           </div>
 
-          {/* Headline. */}
+          {/* Headline — carries the synchronized loading text, then the verdict. */}
           <h2 className="text-text-primary">{c.headline}</h2>
 
-          {/* Timeline — its own band. */}
+          {/* Timeline — the band that progresses during the wait. */}
           <Timeline steps={c.steps} accent={c.accent} />
 
-          {/* Body — what the system did + what's queued. */}
-          <p className="text-text-secondary">{c.body}</p>
-
-          {/* Next-step — muted, smaller, separated. */}
-          <p className="text-sm text-text-muted">{c.nextStep}</p>
+          {/* Body + next-step appear only on the verdict, and fade in AFTER the
+              third dot has filled (250ms delay, held hidden via `both`). */}
+          {settled && c.body && (
+            <p className="text-text-secondary motion-safe:animate-[fadeIn_250ms_ease-out_250ms_both]">
+              {c.body}
+            </p>
+          )}
+          {settled && c.nextStep && (
+            <p className="text-sm text-text-muted motion-safe:animate-[fadeIn_250ms_ease-out_350ms_both]">
+              {c.nextStep}
+            </p>
+          )}
         </div>
       </OutcomeCard>
     </div>

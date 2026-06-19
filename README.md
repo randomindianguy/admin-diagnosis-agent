@@ -62,7 +62,7 @@ Pipeline in `eval/`. Run with `npm run eval`.
 
 ## Stack
 
-Next.js 14 · TypeScript · Tailwind · Anthropic SDK (claude-sonnet-4-6, tool-use, self-consistency) · Voyage embeddings · Okta + Notion + Slack APIs · Zustand · Vercel.
+Next.js 16 · TypeScript · Tailwind · Anthropic SDK (claude-sonnet-4-6, tool-use, self-consistency) · Voyage embeddings · Okta + Notion + Slack APIs · Zustand · Vercel.
 
 ## Credits
 

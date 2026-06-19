@@ -34,7 +34,7 @@ Toggle to **Admin** to see what an admin actually receives.
 
 ## How it works
 
-Cleared integrates with three real workspaces. Okta backs identity and group memberships. Notion backs runbook content that the agent retrieves over and reasons about. Slack backs team channel activity that appears in the admin view but never reaches the model's reasoning. This split between evidence and context is enforced architecturally, not at the prompt layer.
+Cleared integrates with three real workspaces. Okta backs identity and group memberships. Notion backs runbook content that the agent retrieves over and reasons about. Slack backs team channel activity that appears in the admin view but never reaches the model's reasoning. After the agent commits an escalate verdict, the routing channel receives a structured notification with the requester and the investigation — the verdict announcing itself to the team it routed to. This split between evidence and context is enforced architecturally, not at the prompt layer.
 
 The agent runs a fixed pipeline against retrieval, identity graph, and permission state:
 

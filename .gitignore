@@ -44,3 +44,6 @@ next-env.d.ts
 
 # Impeccable design tooling (local dev only — SID-64)
 .claude/
+
+# Slack message-seed idempotency marker (machine-local, SID-61 follow-up)
+scripts/.slack-seeded.json

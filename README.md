@@ -18,6 +18,8 @@ Cleared does that triage. It investigates the request and commits to one of thre
 
 The third one is the differentiator. Most agents in this space try to be confident. This one tries to not be wrong.
 
+Cleared reads identity from real Okta workspaces, runbook content from real Notion pages, and verifies routing channels via real Slack workspaces.
+
 ## Try the demo
 
 Open **[admin-diagnosis-agent.vercel.app](https://admin-diagnosis-agent.vercel.app)** and try these in order:
@@ -27,8 +29,6 @@ Open **[admin-diagnosis-agent.vercel.app](https://admin-diagnosis-agent.vercel.a
 **A refusal that becomes a resolve.** *"I can't open the dashboard."* Cleared doesn't know which one. Instead of guessing, it asks: *"Analytics or data warehouse?"* Reply with *"the analytics dashboard"* and the loop closes into a resolve.
 
 **An escalation.** *"I joined the analytics team last week and need access to the data warehouse dashboards."* Cleared recognizes onboarding routing and sends a complete package to the identity team — who, what, why, and the recommended fix. The admin gets a triaged investigation, not a raw ticket.
-
-The demo runs against a synthetic workspace with a fixed set of users, groups, and resources. The scenarios above exercise the verdict shapes against that data. Arbitrary questions about resources outside the seed may produce wrong answers — retrieval has nothing real to ground them on.
 
 Toggle to **Admin** to see what an admin actually receives.
 

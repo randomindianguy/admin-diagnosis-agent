@@ -20,6 +20,11 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { RetrievedEvidence } from "./schema";
+// SID-61: real workspace sources. Each returns null when not configured (e.g. the
+// eval workspace has no tokens) or on error → we fall back to synthetic data.
+import { getOktaPicture } from "./sources/okta";
+import { getNotionCorpus } from "./sources/notion";
+import { getRoutingChannels } from "./sources/slack";
 
 // ---------------------------------------------------------------------------
 // Channel 1 — runbook similarity retrieval (Voyage embeddings)
@@ -99,11 +104,15 @@ interface EmbeddedDoc extends CorpusDoc {
   embedding: number[];
 }
 let corpusPromise: Promise<EmbeddedDoc[]> | null = null;
+export let knowledgeSource: "notion" | "synthetic" = "synthetic";
 
 function getEmbeddedCorpus(): Promise<EmbeddedDoc[]> {
   if (!corpusPromise) {
     corpusPromise = (async () => {
-      const docs = loadCorpus();
+      // SID-61: prefer the live Notion runbook; fall back to reference-library/.
+      const notion = await getNotionCorpus();
+      const docs = notion ?? loadCorpus();
+      knowledgeSource = notion ? "notion" : "synthetic";
       const embeddings = await voyageEmbed(
         docs.map((d) => d.text),
         "document",
@@ -208,8 +217,35 @@ function norm(s: string): string {
 
 // Channel 2: find entities the symptom references, then graph-expand so the
 // truth the operator missed surfaces.
-export function fetchStatus(symptom: string): StatusFacts {
-  const { picture, currentUserId } = loadScenario();
+export let identitySource: "okta" | "synthetic" = "synthetic";
+
+// Assemble the status picture: live Okta identity (users / groups / memberships /
+// parent_group) when configured, else synthetic. Resources + current_user always
+// come from scenario.json (app-specific data, per the SID-61 architecture). The
+// Okta source is re-keyed to the scenario id scheme so the filtering below and the
+// scenario.json resource principals match unchanged.
+async function buildPicture(): Promise<{
+  picture: StatusPicture;
+  currentUserId?: string;
+}> {
+  const synthetic = loadScenario();
+  const okta = await getOktaPicture();
+  identitySource = okta ? "okta" : "synthetic";
+  if (okta) {
+    return {
+      picture: {
+        users: okta.users,
+        groups: okta.groups,
+        resources: synthetic.picture.resources,
+      },
+      currentUserId: synthetic.currentUserId,
+    };
+  }
+  return synthetic;
+}
+
+export async function fetchStatus(symptom: string): Promise<StatusFacts> {
+  const { picture, currentUserId } = await buildPicture();
   const haystack = norm(symptom);
 
   // 1. Users referenced by full name or a significant name token ("Maya").
@@ -311,13 +347,37 @@ export interface RetrievalResult {
   runbook: RankedEvidence[];
   status: StatusFacts;
   topScore: number; // max runbook similarity; feeds evidence-sufficiency (step 7)
+  // SID-61: which workspace channels exist (real Slack), so routing destinations
+  // can be verified; and where each data slice came from (live vs synthetic).
+  verifiedChannels: string[] | null;
+  sources: {
+    identity: "okta" | "synthetic";
+    knowledge: "notion" | "synthetic";
+    routing: "slack" | "unavailable";
+  };
 }
 
 export async function retrieveContext(
   symptom: string,
 ): Promise<RetrievalResult> {
+  // retrieveRunbook sets knowledgeSource; fetchStatus sets identitySource.
   const runbook = await retrieveRunbook(symptom);
-  const status = fetchStatus(symptom);
+  const status = await fetchStatus(symptom);
+  const channels = await getRoutingChannels(); // real Slack verification call
   const topScore = runbook.length ? runbook[0].score : 0;
-  return { runbook, status, topScore };
+  const sources = {
+    identity: identitySource,
+    knowledge: knowledgeSource,
+    routing: (channels ? "slack" : "unavailable") as "slack" | "unavailable",
+  };
+  console.info(
+    `[retrieval] sources → identity:${sources.identity} knowledge:${sources.knowledge} routing:${sources.routing}${channels ? ` (${channels.size} channels)` : ""}`,
+  );
+  return {
+    runbook,
+    status,
+    topScore,
+    verifiedChannels: channels ? [...channels] : null,
+    sources,
+  };
 }

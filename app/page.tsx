@@ -4,15 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagnosisInput } from "@/components/diagnosis-input";
 import { EndUserCard } from "@/components/end-user-card";
 import { UserBubble } from "@/components/user-bubble";
-import { DisclosureBanner } from "@/components/disclosure-banner";
 import { ErrorState } from "@/components/error-state";
 import { TicketFeed } from "@/components/ticket-feed";
 import { TicketDetail, type LiveTrace } from "@/components/ticket-detail";
 import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
+import { PersonaSwitcher } from "@/components/persona-switcher";
 import { GitHubIcon } from "@/components/icons";
 import { useDiagnose } from "@/hooks/use-diagnose";
 import { useTraceReveal } from "@/hooks/use-trace-reveal";
-import { useSubmissions, CURRENT_USER, makeId, type Turn } from "@/lib/store";
+import { useSubmissions, makeId, type Turn, type Requester } from "@/lib/store";
+import { PERSONAS } from "@/lib/seed-submissions";
 
 const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
 
@@ -20,11 +21,6 @@ const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
 // ~3.5s; on resolve the values swap in (staggered); the card un-gates when the
 // trace signals it's settled (SID-50).
 const TOTAL_TRACE_ROWS = 7;
-
-// First-time-viewer guidance (SID-62 Q5) — one plain-language line, no jargon.
-const GUIDANCE =
-  "Start with a clear request to see a direct answer — then try a vague one to " +
-  "watch the agent ask for more before it guesses.";
 
 // SID-62 — six end-user scenarios for eyes-on, spanning the verdict shapes:
 // four demonstrative (clean resolve, owner routing, escalate, refuse→resolve),
@@ -96,6 +92,10 @@ export default function Home() {
   // The query that produced the current result (kept for the live retry path).
   const [submitted, setSubmitted] = useState("");
   const [personaView, setPersonaView] = useState<PersonaView>("end-user");
+  // End-user portal (SID-68): which persona is "me", and which past ticket of
+  // theirs is open (read-only). Local UI state — the store + admin stay untouched.
+  const [currentPersona, setCurrentPersona] = useState<Requester>(PERSONAS[0]);
+  const [pastSelectedId, setPastSelectedId] = useState<string | null>(null);
   // The id for the in-flight agent turn. Minted at submit and reused when the
   // turn is archived, so the loading card and the settled card share a key and
   // morph in place (SID-59). Non-null === a request is in flight / awaiting.
@@ -125,6 +125,14 @@ export default function Home() {
 
   const active = submissions.find((s) => s.id === activeId) ?? null;
   const turns = active?.turns ?? [];
+
+  // End-user portal (SID-68): this persona's own tickets for the left rail, the
+  // open past ticket, and whether a detail/active view is showing (mobile drill-in).
+  const personaSubs = submissions.filter(
+    (s) => s.requester.name === currentPersona.name,
+  );
+  const pastSub = submissions.find((s) => s.id === pastSelectedId) ?? null;
+  const mobileDetailOpen = !!active || !!pastSub;
 
   // `now` anchors the "X ago" timestamps. Computed once via a lazy initializer
   // (not setState-in-effect); only ever read once the admin feed renders, which
@@ -211,22 +219,25 @@ export default function Home() {
       query = `Original request: "${firstUser?.text ?? ""}" Clarification: "${q}"`;
     }
 
-    if (!active) startSubmission(CURRENT_USER, q);
+    if (!active) startSubmission(currentPersona, q);
     else addUserTurn(q);
 
     const agentId = makeId("agent");
+    setPastSelectedId(null); // leaving any past view → this becomes the active one
     setPendingAgentId(agentId);
     setSubmitted(query);
     setSymptom(""); // clear input on submit (standard chat behavior)
     runDiagnose(query, agentId);
   }
 
-  // Reset to the empty home state. The submission persists in the store's feed
-  // (the live-ingestion seam SID-63 reads) — only the active pointer clears.
+  // Reset to the compose state. The submission persists in the store's feed (the
+  // live-ingestion seam SID-63 reads, and the SID-68 rail's "Recent") — only the
+  // active + past pointers clear. Doubles as the rail "New request" and mobile back.
   function handleReset() {
     resetStore();
     diagnose.reset();
     setPendingAgentId(null);
+    setPastSelectedId(null);
     setSymptom("");
     setSubmitted("");
     setTraceSettled(false);
@@ -236,6 +247,23 @@ export default function Home() {
   function handlePickChip(query: string) {
     handleReset();
     setSymptom(query);
+  }
+
+  // SID-68: switch the logged-in persona — swaps the rail and clears the right
+  // pane to compose (a fresh session as that person).
+  function handleSelectPersona(p: Requester) {
+    setCurrentPersona(p);
+    handleReset();
+  }
+
+  // SID-68: open one of this persona's past tickets, read-only. Leaves any active
+  // conversation (it persists in the feed) and shows the selected ticket.
+  function handleSelectPast(id: string) {
+    resetStore();
+    diagnose.reset();
+    setPendingAgentId(null);
+    setTraceSettled(false);
+    setPastSelectedId(id);
   }
 
   return (
@@ -266,79 +294,151 @@ export default function Home() {
       </header>
 
       {personaView === "end-user" ? (
-        // END-USER — chat (SID-62, revised): input pinned at the BOTTOM, the
-        // conversation stream grows above it and auto-scrolls to the newest turn
-        // (standard chat coherence — you respond where you read). The empty state
-        // stacks WHAT → WHY → HOW (banner → guidance → chips) bottom-anchored
-        // just above the input → action.
-        <div className="flex min-h-0 flex-1 justify-center overflow-hidden">
-          <div className="flex min-h-0 w-full max-w-[480px] flex-col">
-            {/* Scroll region above the input. */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-auto px-md pt-lg">
+        // END-USER — personal help portal (SID-68): persona-aware history (left
+        // rail) + a right pane that is compose / past-ticket (read-only) / active
+        // conversation. ChatGPT-style two-pane on desktop; single-pane stacked on
+        // mobile with drill-in to a past ticket.
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          {/* LEFT RAIL — persona switcher, "New request", this persona's Recent.
+              Hidden on mobile while a detail/active view is open (drill-in). */}
+          <aside
+            className={`min-h-0 shrink-0 flex-col border-border md:flex md:max-h-none md:w-[320px] md:border-b-0 md:border-r ${
+              mobileDetailOpen ? "hidden md:flex" : "flex max-h-[50vh] border-b"
+            }`}
+          >
+            <div className="shrink-0 border-b border-border p-sm">
+              <PersonaSwitcher
+                personas={PERSONAS}
+                current={currentPersona}
+                onSelect={handleSelectPersona}
+              />
+              <button
+                type="button"
+                onClick={handleReset}
+                className="mt-xs inline-flex min-h-[40px] w-full items-center rounded-md px-sm text-sm text-text-secondary transition-colors hover:bg-background-secondary hover:text-text-primary"
+              >
+                + New request
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-md">
+              <p className="mb-sm font-display text-displaySm italic lowercase text-text-muted">
+                recent
+              </p>
+              {personaSubs.length > 0 ? (
+                <TicketFeed
+                  submissions={personaSubs}
+                  selectedId={pastSelectedId}
+                  now={now}
+                  onSelect={handleSelectPast}
+                />
+              ) : (
+                <p className="text-sm text-text-muted">No recent tickets.</p>
+              )}
+            </div>
+          </aside>
+
+          {/* RIGHT PANE — compose / past ticket / active conversation. */}
+          <section className="flex min-w-0 flex-1 flex-col">
+
+            {/* Mobile drill-out — only when a detail/active view is open. */}
+            {mobileDetailOpen && (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="flex min-h-[44px] shrink-0 items-center gap-xs border-b border-border px-md text-sm text-text-secondary transition-colors hover:text-text-primary md:hidden"
+              >
+                ← Back
+              </button>
+            )}
+
+            <div className="mx-auto flex min-h-0 w-full max-w-[560px] flex-1 flex-col">
               {active ? (
-                // aria-live so screen readers announce new turns + the verdict
-                // as the conversation grows (SID-64 a11y).
-                <div
-                  role="log"
-                  aria-live="polite"
-                  aria-relevant="additions"
-                  className="flex flex-col gap-md"
-                >
-                  {turns.map((t) =>
-                    t.role === "user" ? (
-                      <UserBubble key={t.id} text={t.text} />
-                    ) : (
-                      <EndUserCard key={t.id} output={t.output} />
-                    ),
-                  )}
-                  {/* In-flight agent turn — same key as its eventual archived
-                      turn, so it morphs loading→verdict in place (SID-59). */}
-                  {pendingAgentId && !diagnose.isError && (
-                    <EndUserCard
-                      key={pendingAgentId}
-                      output={diagnose.data ?? null}
+                // ACTIVE CONVERSATION — the live stream + input (multi-turn).
+                <>
+                  <div className="flex min-h-0 flex-1 flex-col overflow-auto px-md pt-lg">
+                    <div
+                      role="log"
+                      aria-live="polite"
+                      aria-relevant="additions"
+                      className="flex flex-col gap-md"
+                    >
+                      {turns.map((t) =>
+                        t.role === "user" ? (
+                          <UserBubble key={t.id} text={t.text} />
+                        ) : (
+                          <EndUserCard key={t.id} output={t.output} />
+                        ),
+                      )}
+                      {pendingAgentId && !diagnose.isError && (
+                        <EndUserCard
+                          key={pendingAgentId}
+                          output={diagnose.data ?? null}
+                        />
+                      )}
+                      {pendingAgentId && diagnose.isError && (
+                        <ErrorState
+                          message={diagnose.error.message}
+                          onRetry={() => runDiagnose(submitted, pendingAgentId)}
+                        />
+                      )}
+                      <div ref={bottomRef} />
+                    </div>
+                  </div>
+                  <div className="px-md pb-lg pt-md">
+                    <DiagnosisInput
+                      value={symptom}
+                      onChange={setSymptom}
+                      onSubmit={() => handleSubmit(symptom)}
+                      disabled={diagnose.isPending}
                     />
-                  )}
-                  {pendingAgentId && diagnose.isError && (
-                    <ErrorState
-                      message={diagnose.error.message}
-                      onRetry={() => runDiagnose(submitted, pendingAgentId)}
-                    />
-                  )}
-                  <div ref={bottomRef} />
+                  </div>
+                </>
+              ) : pastSub ? (
+                // PAST TICKET — read-only conversation (no input).
+                <div className="flex min-h-0 flex-1 flex-col overflow-auto px-md py-lg">
+                  <div className="flex flex-col gap-md">
+                    {pastSub.turns.map((t) =>
+                      t.role === "user" ? (
+                        <UserBubble key={t.id} text={t.text} />
+                      ) : (
+                        <EndUserCard key={t.id} output={t.output} />
+                      ),
+                    )}
+                  </div>
                 </div>
               ) : (
-                // WHAT → WHY → HOW, bottom-anchored just above the input.
-                <div className="mt-auto flex flex-col gap-md pb-md">
-                  <DisclosureBanner />
-                  <p className="text-text-secondary">{GUIDANCE}</p>
-                  <ScenarioChips
-                    onPick={handlePickChip}
-                    disabled={diagnose.isPending}
-                  />
-                </div>
+                // COMPOSE — empty state. "What's blocked?" + chips + input.
+                <>
+                  <div className="flex min-h-0 flex-1 flex-col justify-end overflow-auto px-md pt-lg">
+                    <div className="flex flex-col gap-md pb-md">
+                      <div className="flex flex-col gap-xs">
+                        <h2 className="font-display text-[28px] font-medium leading-heading tracking-display text-text-primary">
+                          What&rsquo;s blocked?
+                        </h2>
+                        <p className="font-display text-[15px] italic text-text-muted">
+                          Describe what you can&rsquo;t reach — I&rsquo;ll check
+                          your access and answer, or ask one question before
+                          guessing.
+                        </p>
+                      </div>
+                      <ScenarioChips
+                        onPick={handlePickChip}
+                        disabled={diagnose.isPending}
+                      />
+                    </div>
+                  </div>
+                  <div className="px-md pb-lg pt-md">
+                    <DiagnosisInput
+                      value={symptom}
+                      onChange={setSymptom}
+                      onSubmit={() => handleSubmit(symptom)}
+                      disabled={diagnose.isPending}
+                    />
+                  </div>
+                </>
               )}
             </div>
-
-            {/* Pinned input area (bottom). */}
-            <div className="flex flex-col gap-sm px-md pb-lg pt-md">
-              {active && (
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="inline-flex min-h-[44px] items-center self-start text-sm text-text-secondary transition-colors hover:text-text-primary"
-                >
-                  + New request
-                </button>
-              )}
-              <DiagnosisInput
-                value={symptom}
-                onChange={setSymptom}
-                onSubmit={() => handleSubmit(symptom)}
-                disabled={diagnose.isPending}
-              />
-            </div>
-          </div>
+          </section>
         </div>
       ) : (
         // ADMIN — ticket system (SID-63): feed (list) + selected ticket (detail),

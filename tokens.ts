@@ -44,31 +44,53 @@ export const tokens = {
     border: "#E5E5EA",               // placeholder — refine when the build needs it
   },
 
+  // SID-67 — theme-INDEPENDENT semantic colors for the warm-dark "audit /
+  // case-file" register. Fixed literals (don't flip); the app is dark-only.
+  // Accent is amber/copper, used SPARINGLY (primary action + links only, never
+  // decoration). Verdict colors are the warm restatement of resolve/escalate/
+  // refuse — all clear WCAG AA (≥4.5:1) on bg and surface.
+  accent: "#C68E3D",                 // amber/copper — Send button, links, focus
+  verdict: {
+    resolve: "#5B8F5B",              // warm green
+    escalate: "#C46A3A",             // burnt orange (kept clear of accent amber)
+    refuse: "#8A7E6B",               // muted gray-amber
+  },
+
   // Dark theme (SID-48 Phase 3). ADDED IN PARALLEL — the light `color` block
   // above is preserved, not replaced. Only the theme-FLIPPING roles live here;
   // the saturated/semantic colors (brand.primary, surface.dark, state.warning,
   // text.inverse) stay fixed across themes so verdict + accent meaning doesn't
   // shift. These values are mirrored as the `.dark` CSS variables in globals.css;
   // the active theme is switched there + via <html class="dark"> in layout.tsx.
+  //
+  // SID-67: repointed to the warm-dark register. Warm near-black with a brown
+  // undertone (not the old cold #0D0D0E), warm off-white text (never pure white),
+  // hairline #2D2925. text.muted lightened to #948A7C so the 12px mono audit
+  // labels clear WCAG AA (5.7:1 on bg, 4.7:1 on surface-2); the card's #6B6359
+  // tested at 3.0:1 and would have failed. tertiary = hover / secondary surface.
   colorDark: {
     background: {
-      primary: "#0D0D0E",            // near-black page
-      secondary: "#18181B",          // panels / chips / snippet wells
+      primary: "#0F0E0C",            // warm near-black page (brown undertone)
+      secondary: "#1A1815",          // panels / elevated surface
+      tertiary: "#252220",           // hover / secondary surface
     },
     text: {
-      primary: "#EDEDED",            // near-white body / headings
-      secondary: "#A1A1AA",          // muted
-      muted: "#8A8A95",              // faint / eyebrow — lightened for WCAG AA
-                                     // (SID-64: ~5:1 on bg + cards; was #71717A ≈ 3.6–4.0:1)
+      primary: "#F2EDE3",            // warm off-white (NOT pure white)
+      secondary: "#A89F8E",          // warm secondary
+      muted: "#948A7C",              // faint — audit labels; AA-safe warm (card #6B6359 → 3.0:1)
     },
-    border: "#2A2A2E",
+    border: "#2D2925",               // hairline rules
   },
 
   font: {
-    // Polysans Neutral is licensed. Inter is the closest free substitute.
-    // If/when you license Polysans, replace the first entry.
-    sans: '"Inter", "Polysans Neutral", Arial, sans-serif',
-    mono: '"JetBrains Mono", monospace',
+    // SID-67 three-family system (loaded by next/font in layout.tsx, resolved via
+    // CSS variables). sans = Inter (body, no character of its own); display =
+    // Newsreader (wordmark + verdict text + eyebrows ONLY); mono = IBM Plex Mono
+    // (evidence labels, identifiers, paths, scores). The generic fallbacks guard
+    // the flash before the variable resolves.
+    sans: "var(--font-sans), system-ui, sans-serif",
+    display: "var(--font-display), Georgia, serif",
+    mono: "var(--font-mono), ui-monospace, monospace",
   },
 
   size: {
@@ -76,6 +98,11 @@ export const tokens = {
     button: "1.125rem",              // confirmed — Glean's nav button size
     h1: "4.5rem",                    // confirmed — desktop hero
     h1Mobile: "38px",                // confirmed — mobile hero
+    // SID-67 register steps. Display serif moments + the mono audit vocabulary.
+    displayLg: "30px",               // verdict moments (28–32px band)
+    displaySm: "14px",               // section eyebrows (italic lowercase)
+    monoLabel: "12px",               // evidence row labels (uppercase, tracked)
+    monoValue: "13px",               // identifiers / paths / scores
   },
 
   weight: {
@@ -92,6 +119,8 @@ export const tokens = {
 
   letterSpacing: {
     heading: "-0.15rem",             // confirmed — Glean's tight tracking on headings
+    display: "-0.01em",              // SID-67 — gentle tightening on display serif
+    monoLabel: "0.08em",             // SID-67 — tracked uppercase audit labels
   },
 
   spacing: {

@@ -29,6 +29,7 @@ const config: Config = {
         background: {
           primary: "var(--color-bg-primary)",
           secondary: "var(--color-bg-secondary)",
+          tertiary: "var(--color-bg-tertiary)",
         },
         text: {
           primary: "var(--color-text-primary)",
@@ -46,10 +47,18 @@ const config: Config = {
         state: {
           warning: tokens.color.state.warning,
         },
+        // SID-67 warm-dark semantic colors (fixed literals, theme-independent).
+        accent: tokens.accent,
+        verdict: {
+          resolve: tokens.verdict.resolve,
+          escalate: tokens.verdict.escalate,
+          refuse: tokens.verdict.refuse,
+        },
         border: "var(--color-border)",
       },
       fontFamily: {
         sans: [tokens.font.sans],
+        display: [tokens.font.display],
         mono: [tokens.font.mono],
       },
       fontSize: {
@@ -57,6 +66,10 @@ const config: Config = {
         button: tokens.size.button,
         h1: tokens.size.h1,
         h1Mobile: tokens.size.h1Mobile,
+        displayLg: tokens.size.displayLg,
+        displaySm: tokens.size.displaySm,
+        monoLabel: tokens.size.monoLabel,
+        monoValue: tokens.size.monoValue,
       },
       // Tailwind types fontWeight/lineHeight as string; tokens store them as
       // numbers. String() is a type coercion only — the value is preserved
@@ -73,6 +86,8 @@ const config: Config = {
       },
       letterSpacing: {
         heading: tokens.letterSpacing.heading,
+        display: tokens.letterSpacing.display,
+        monoLabel: tokens.letterSpacing.monoLabel,
       },
       spacing: {
         xs: tokens.spacing.xs,

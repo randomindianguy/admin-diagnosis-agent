@@ -12,19 +12,30 @@
 :root {
   --color-bg-primary: #ffffff;
   --color-bg-secondary: #f6f6f6;
+  --color-bg-tertiary: #ececec;
   --color-text-primary: #0a0227;
   --color-text-secondary: #333333;
   --color-text-muted: #d8d8d8;
   --color-border: #e5e5ea;
 }
 
+/* SID-67: warm-dark "audit / case-file" register. Warm near-black with a brown
+   undertone, warm off-white text (never pure white), hairline #2D2925. Mirrors
+   tokens.ts colorDark — keep in sync. The app is dark-only (<html class="dark">). */
 .dark {
-  --color-bg-primary: #0d0d0e;
-  --color-bg-secondary: #18181b;
-  --color-text-primary: #ededed;
-  --color-text-secondary: #a1a1aa;
-  --color-text-muted: #8a8a95; /* SID-64: lightened for WCAG AA (was #71717a) */
-  --color-border: #2a2a2e;
+  --color-bg-primary: #0f0e0c;
+  --color-bg-secondary: #1a1815;
+  --color-bg-tertiary: #252220;
+  --color-text-primary: #f2ede3;
+  --color-text-secondary: #a89f8e;
+  --color-text-muted: #948a7c; /* SID-67: AA-safe warm (card #6B6359 → 3.0:1) */
+  --color-border: #2d2925;
+}
+
+/* Amber selection that belongs to the warm register, not the browser default. */
+::selection {
+  background-color: rgba(198, 142, 61, 0.28);
+  color: var(--color-text-primary);
 }
 
 /* Reasoning-trace motion (SID-49 B.7 → SID-50). Per-row sequencing is now driven

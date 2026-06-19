@@ -1,16 +1,12 @@
-import { Info } from "lucide-react";
-
 // Disclosure banner (B.4) — end-user only. Tells the viewer the simplification is
-// JTBD-driven, not role-based gating. SID-62: shown ONCE in the empty state (it
-// was per-card before; in a multi-turn stream that repeated on every turn).
+// JTBD-driven, not role-based gating. SID-67: a single line of italic display
+// serif at the top, not a boxed callout — trust the type to carry it (no card,
+// no icon).
 export function DisclosureBanner() {
   return (
-    <div className="flex items-start gap-sm rounded-md border border-border bg-background-secondary px-md py-sm text-sm text-text-secondary">
-      <Info size={16} aria-hidden className="mt-[2px] shrink-0" />
-      <p>
-        End-user view — what the person who&rsquo;s blocked sees. Toggle to Admin
-        for what the support team sees when handling your request.
-      </p>
-    </div>
+    <p className="font-display text-[15px] italic leading-body text-text-muted">
+      End-user view — what the person who&rsquo;s blocked sees. Toggle to Admin for
+      what the support team sees when handling your request.
+    </p>
   );
 }

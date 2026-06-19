@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { Check, AlertTriangle, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import type { DiagnosisOutput } from "@/lib/schema";
 import { OutcomeCard } from "./outcome-card";
+import { VerdictText } from "./verdict-pill";
 import { HowThisDecides } from "./how-this-decides";
 import { EvidenceItem } from "./evidence-item";
 import { CopyButton } from "./copy-button";
@@ -10,8 +11,13 @@ import { CopyButton } from "./copy-button";
 // confidence + evidence sections so they read as quiet structure, not headings
 // that compete with the verdict (SID-46 B design constraint).
 function SectionLabel({ children }: { children: ReactNode }) {
-  // Body-size (Tailwind preflight resets heading size), muted color — quiet.
-  return <h3 className="text-text-secondary">{children}</h3>;
+  // SID-67: section eyebrow — display serif, italic, lowercase, muted. Quiet
+  // structure that doesn't compete with the verdict.
+  return (
+    <h3 className="font-display text-displaySm italic lowercase text-text-muted">
+      {children}
+    </h3>
+  );
 }
 
 // snake_case canonical label → display string. A presentation transform only;
@@ -51,17 +57,11 @@ export function DiagnosisOutput({
     return (
       <OutcomeCard>
         <div className="flex flex-col gap-lg">
-          {/* Verdict pill — top-left, chip-sized, brand blue. */}
-          <div>
-            <span className="inline-flex items-center gap-xs rounded-pill bg-brand-primary px-md py-xs text-text-inverse">
-              <Check size={16} aria-hidden />
-              Resolved
-            </span>
-          </div>
-
-          {/* Decision: root cause + plain-language diagnosis. */}
+          {/* Verdict as content — display serif, colored (SID-67). The detail
+              ("· Existing group access") carries the root cause, so no separate
+              label line. */}
           <div className="flex flex-col gap-sm">
-            <span className="text-text-primary">{humanize(output.root_cause)}</span>
+            <VerdictText output={output} />
             <p className="whitespace-pre-wrap text-text-primary">
               {output.diagnosis_text}
             </p>
@@ -128,24 +128,10 @@ export function DiagnosisOutput({
   return (
     <OutcomeCard>
       <div className="flex flex-col gap-lg">
-        {/* Verdict pill — amber/caution. Dark text on amber for AA contrast
-            (~5.3:1) via surface.dark, a FIXED dark token (text.primary flips to
-            near-white under the dark theme and would kill the contrast). */}
-        <div>
-          <span className="inline-flex items-center gap-xs rounded-pill bg-state-warning px-md py-xs text-surface-dark">
-            <AlertTriangle size={16} aria-hidden />
-            Escalated
-          </span>
-        </div>
-
-        {/* Decision: owner routing chip + the model's escalation reason. */}
+        {/* Verdict as content — display serif, colored (SID-67). The detail
+            ("· Identity team") carries the routing destination. */}
         <div className="flex flex-col gap-sm">
-          <div className="flex flex-wrap items-center gap-sm">
-            <span className="text-text-secondary">Routed to</span>
-            <span className="inline-flex items-center rounded-pill border border-border bg-background-primary px-md py-xs text-text-primary">
-              {output.owner}
-            </span>
-          </div>
+          <VerdictText output={output} />
           <p className="whitespace-pre-wrap text-text-primary">
             {output.diagnosis_text}
           </p>

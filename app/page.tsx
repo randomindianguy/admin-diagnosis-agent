@@ -9,7 +9,7 @@ import { ErrorState } from "@/components/error-state";
 import { TicketFeed } from "@/components/ticket-feed";
 import { TicketDetail, type LiveTrace } from "@/components/ticket-detail";
 import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
-import { ShieldIcon, GitHubIcon } from "@/components/icons";
+import { GitHubIcon } from "@/components/icons";
 import { useDiagnose } from "@/hooks/use-diagnose";
 import { useTraceReveal } from "@/hooks/use-trace-reveal";
 import { useSubmissions, CURRENT_USER, makeId, type Turn } from "@/lib/store";
@@ -82,7 +82,7 @@ function ScenarioChips({
           type="button"
           onClick={() => onPick(s.query)}
           disabled={disabled}
-          className="inline-flex min-h-[44px] items-center rounded-pill border border-border bg-background-secondary px-md py-xs text-text-secondary transition-colors hover:border-brand-primary hover:text-text-primary disabled:opacity-50"
+          className="inline-flex min-h-[44px] items-center rounded-md border border-border px-md py-xs text-sm text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary disabled:opacity-50"
         >
           {s.label}
         </button>
@@ -242,11 +242,11 @@ export default function Home() {
     <main className="flex h-screen w-full flex-col bg-background-primary text-text-primary">
       {/* Shared top bar — the persona toggle is the structural shell switch. */}
       <header className="flex items-center justify-between border-b border-border px-lg py-md">
-        <div className="flex items-center gap-sm text-text-primary">
-          <ShieldIcon className="h-6 w-6 text-brand-primary" />
-          {/* Page heading (SID-64 a11y: gives the page an h1 — same visual). */}
-          <h1 className="text-button">Cleared</h1>
-        </div>
+        {/* SID-67 wordmark — type-only, the mark IS the type. Display serif
+            (Newsreader), no shield glyph. Page h1 (SID-64 a11y) preserved. */}
+        <h1 className="font-display text-[22px] font-medium tracking-display text-text-primary">
+          Cleared
+        </h1>
         <div className="flex items-center gap-md">
           <PersonaToggle
             value={personaView}

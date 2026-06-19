@@ -31,7 +31,7 @@ export function CopyButton({
     <button
       type="button"
       onClick={handleCopy}
-      className="inline-flex items-center gap-xs self-start rounded-pill border border-border px-md py-xs text-text-secondary transition-colors hover:text-text-primary"
+      className="inline-flex items-center gap-xs self-start rounded-md border border-border px-md py-xs text-text-secondary transition-colors hover:text-text-primary"
     >
       {copied ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />}
       {copied ? "Copied" : label}

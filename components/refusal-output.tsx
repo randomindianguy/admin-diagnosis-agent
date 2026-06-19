@@ -1,5 +1,4 @@
 import { Info } from "lucide-react";
-import { OutcomeCard } from "./outcome-card";
 import type { DiagnosisOutput } from "@/lib/schema";
 
 type RefuseOutput = Extract<DiagnosisOutput, { verdict: "refuse_out_of_scope" }>;
@@ -17,25 +16,25 @@ type RefuseOutput = Extract<DiagnosisOutput, { verdict: "refuse_out_of_scope" }>
 export function RefusalOutput({ output }: { output: RefuseOutput }) {
   // --- out_of_scope: the perimeter card (unchanged behavior). ---
   if (output.refuse_reason === "out_of_scope") {
+    // SID-67: a document, not a card — hairline border, no fill, display-serif
+    // heading. Reads as a filed scope note rather than a boxed callout.
     return (
-      <OutcomeCard>
-        <div className="flex flex-col gap-md">
-          {/* Scope-perimeter copy (authored — SID-46 A.3). */}
-          <h2 className="text-text-primary">
-            Outside what this assistant handles
-          </h2>
-          <p className="text-text-secondary">
-            This assistant focuses on workspace access — diagnosing why someone
-            can or can&rsquo;t reach a resource, reporting on current access
-            state, and recommending fixes. Some questions are routed to a human
-            admin for execution.
-          </p>
-          <p className="text-text-secondary">
-            It doesn&rsquo;t execute access changes, handle configuration, answer
-            policy questions, or provide general IT support.
-          </p>
-        </div>
-      </OutcomeCard>
+      <div className="flex flex-col gap-md rounded-md border border-border p-lg">
+        {/* Scope-perimeter copy (authored — SID-46 A.3). */}
+        <h2 className="font-display text-[20px] font-medium tracking-display text-text-primary">
+          Outside what this assistant handles
+        </h2>
+        <p className="text-text-secondary">
+          This assistant focuses on workspace access — diagnosing why someone can
+          or can&rsquo;t reach a resource, reporting on current access state, and
+          recommending fixes. Some questions are routed to a human admin for
+          execution.
+        </p>
+        <p className="text-text-secondary">
+          It doesn&rsquo;t execute access changes, handle configuration, answer
+          policy questions, or provide general IT support.
+        </p>
+      </div>
     );
   }
 

@@ -27,7 +27,7 @@ export function TicketCard({
       aria-current={selected}
       className={`flex w-full flex-col gap-sm rounded-md border px-md py-sm text-left transition-colors ${
         selected
-          ? "border-brand-primary bg-background-secondary"
+          ? "border-accent bg-background-secondary"
           : "border-border hover:border-text-muted"
       }`}
     >

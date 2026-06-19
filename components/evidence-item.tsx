@@ -27,9 +27,11 @@ export function EvidenceItem({
         aria-expanded={open}
         className="flex items-center justify-between gap-md rounded-md px-sm py-xs text-left transition-colors hover:bg-background-primary"
       >
-        <span className="text-text-primary">{source}</span>
+        <span className="font-mono text-monoValue text-text-primary">{source}</span>
         <span className="flex items-center gap-sm text-text-secondary">
-          <span>similarity {similarity.toFixed(2)}</span>
+          <span className="font-mono text-monoLabel uppercase tracking-monoLabel">
+            sim {similarity.toFixed(2)}
+          </span>
           <ChevronDown
             size={16}
             aria-hidden
@@ -43,7 +45,7 @@ export function EvidenceItem({
         // excerpt. Markdown elements are restyled here because Tailwind preflight
         // strips heading sizes + list markers.
         <div
-          className="rounded-md border border-border bg-background-primary p-md text-text-secondary [&>*+*]:mt-sm [&_a]:text-brand-primary [&_code]:rounded [&_code]:bg-background-secondary [&_code]:px-xs [&_code]:font-mono [&_code]:text-text-primary [&_h1]:font-medium [&_h1]:text-text-primary [&_h2]:font-medium [&_h2]:text-text-primary [&_li]:ml-lg [&_ol]:list-decimal [&_strong]:font-medium [&_strong]:text-text-primary [&_ul]:list-disc"
+          className="rounded-md border border-border bg-background-primary p-md text-text-secondary [&>*+*]:mt-sm [&_a]:text-accent [&_code]:rounded [&_code]:bg-background-secondary [&_code]:px-xs [&_code]:font-mono [&_code]:text-text-primary [&_h1]:font-medium [&_h1]:text-text-primary [&_h2]:font-medium [&_h2]:text-text-primary [&_li]:ml-lg [&_ol]:list-decimal [&_strong]:font-medium [&_strong]:text-text-primary [&_ul]:list-disc"
         >
           <ReactMarkdown>{snippet}</ReactMarkdown>
         </div>

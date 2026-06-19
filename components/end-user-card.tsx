@@ -18,7 +18,7 @@ import { usePrefersReducedMotion } from "@/hooks/use-trace-reveal";
 // the agent's work is done, but the admin's hasn't started (a genuinely-future
 // state we don't pretend is complete).
 
-type Accent = "brand" | "warning" | "muted";
+type Accent = "resolve" | "escalate" | "neutral";
 
 type Step = { lit: boolean; label: string; chip?: string };
 
@@ -54,10 +54,10 @@ function ownerLabel(owner: string): string {
 // its transition. ---
 function Dot({ lit, accent }: { lit: boolean; accent: Accent }) {
   const fill =
-    accent === "brand"
-      ? "bg-brand-primary"
-      : accent === "warning"
-        ? "bg-state-warning"
+    accent === "resolve"
+      ? "bg-verdict-resolve"
+      : accent === "escalate"
+        ? "bg-verdict-escalate"
         : "bg-text-muted";
   return (
     <span
@@ -83,7 +83,7 @@ function Timeline({ steps, accent }: { steps: Step[]; accent: Accent }) {
               </span>
             )}
             {s.chip && (
-              <span className="rounded-pill border border-border px-sm py-[1px] text-sm text-text-secondary">
+              <span className="rounded-sm border border-border px-sm py-[1px] text-sm text-text-secondary">
                 {s.chip}
               </span>
             )}
@@ -103,9 +103,10 @@ function content(output: DiagnosisOutput): CardContent {
   if (output.verdict === "resolve") {
     // SID-56: resolve = the user gets their answer directly. No ticket created.
     return {
-      accent: "brand",
+      accent: "resolve",
       pillIcon: <Check size={16} aria-hidden />,
-      pillClass: "bg-brand-primary text-text-inverse",
+      pillClass:
+        "border border-verdict-resolve/40 bg-verdict-resolve/10 text-verdict-resolve",
       pillLabel: "Answered",
       headline: "Here's your answer.",
       steps: [
@@ -123,9 +124,10 @@ function content(output: DiagnosisOutput): CardContent {
     // The third dot stays HOLLOW — the admin's review is genuinely future.
     const team = ownerLabel(output.owner);
     return {
-      accent: "warning",
+      accent: "escalate",
       pillIcon: <AlertTriangle size={16} aria-hidden />,
-      pillClass: "bg-state-warning text-surface-dark",
+      pillClass:
+        "border border-verdict-escalate/40 bg-verdict-escalate/10 text-verdict-escalate",
       pillLabel: "Submitted",
       headline: "Submitted to your admin.",
       steps: [
@@ -146,7 +148,7 @@ function content(output: DiagnosisOutput): CardContent {
   // concluded with a clear outcome the user can act on).
   if (output.refuse_reason === "resource_ambiguity") {
     return {
-      accent: "muted",
+      accent: "neutral",
       pillIcon: <Info size={16} aria-hidden />,
       pillClass: "border border-border bg-background-primary text-text-secondary",
       pillLabel: "Need a bit more",
@@ -165,7 +167,7 @@ function content(output: DiagnosisOutput): CardContent {
   }
   if (output.refuse_reason === "intent_ambiguity") {
     return {
-      accent: "muted",
+      accent: "neutral",
       pillIcon: <Info size={16} aria-hidden />,
       pillClass: "border border-border bg-background-primary text-text-secondary",
       pillLabel: "Need a bit more",
@@ -183,7 +185,7 @@ function content(output: DiagnosisOutput): CardContent {
   }
   // out_of_scope — terminal; routed nowhere, the user goes to the helpdesk.
   return {
-    accent: "muted",
+    accent: "neutral",
     pillIcon: <Info size={16} aria-hidden />,
     pillClass: "border border-border bg-background-primary text-text-secondary",
     pillLabel: "Not handled here",
@@ -207,7 +209,7 @@ type LoadingPhase = "filed" | "checked";
 
 function loadingContent(phase: LoadingPhase): CardContent {
   return {
-    accent: "brand",
+    accent: "neutral",
     pillIcon: <Loader2 size={16} aria-hidden className="motion-safe:animate-spin" />,
     pillClass: "border border-border bg-background-primary text-text-secondary",
     pillLabel: "Working",
@@ -246,15 +248,18 @@ export function EndUserCard({ output }: { output: DiagnosisOutput | null }) {
           {/* Status pill — top-left. Morphs from the loading pill to the verdict. */}
           <div>
             <span
-              className={`inline-flex items-center gap-xs rounded-pill px-md py-xs ${c.pillClass}`}
+              className={`inline-flex items-center gap-xs rounded-sm px-md py-xs ${c.pillClass}`}
             >
               {c.pillIcon}
               {c.pillLabel}
             </span>
           </div>
 
-          {/* Headline — carries the synchronized loading text, then the verdict. */}
-          <h2 className="text-text-primary">{c.headline}</h2>
+          {/* Headline — the end-user verdict moment, in display serif (SID-67).
+              Carries the synchronized loading text, then the verdict statement. */}
+          <h2 className="font-display text-[22px] font-medium leading-heading tracking-display text-text-primary">
+            {c.headline}
+          </h2>
 
           {/* Timeline — the band that progresses during the wait. */}
           <Timeline steps={c.steps} accent={c.accent} />

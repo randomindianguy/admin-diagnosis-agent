@@ -15,7 +15,7 @@ export function ErrorState({ message, onRetry }: ErrorStateProps) {
         <button
           type="button"
           onClick={onRetry}
-          className="self-start rounded-pill bg-brand-primary px-lg py-sm text-button text-text-inverse"
+          className="self-start rounded-md bg-accent px-lg py-sm font-medium text-background-primary"
         >
           Try again
         </button>

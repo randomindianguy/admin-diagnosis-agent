@@ -20,6 +20,16 @@ function slugifyOwner(owner: string): string {
     .replace(/\s+/g, "-");
 }
 
+// Post-verdict notification target (SID-66). DELIBERATELY narrower than
+// routingChannelFor: only an `escalate` to a real team channel posts. Owner-
+// routing resolves return a channel for the SID-65 display layer but must NOT
+// trigger a Slack post (different framing — a follow-up card). resource-owner /
+// human-reviewer escalates have no team channel → null → skip silently.
+export function escalationChannelFor(output: DiagnosisOutput): string | null {
+  if (output.verdict !== "escalate") return null;
+  return TEAM_CHANNELS.has(output.owner) ? output.owner : null;
+}
+
 export function routingChannelFor(output: DiagnosisOutput): string | null {
   if (output.verdict === "escalate") {
     return TEAM_CHANNELS.has(output.owner) ? output.owner : null;

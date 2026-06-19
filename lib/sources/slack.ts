@@ -53,6 +53,41 @@ async function buildMap(): Promise<Map<string, string>> {
   return map;
 }
 
+// Post-verdict notification (SID-66). DISPLAY/ORCHESTRATION-LAYER ONLY — called
+// from the API route AFTER a verdict commits, never by the diagnosis pipeline.
+// Posts as the "Cleared" bot (chat:write.customize) so the message reads as the
+// agent announcing a verdict it already made. Returns false (never throws) when
+// not configured, the channel is unknown, or Slack rejects the post — the caller
+// degrades to no-post, identical verdict response.
+export async function postNotification(
+  channelName: string,
+  text: string,
+): Promise<boolean> {
+  if (!TOKEN) return false;
+  try {
+    const map = await getChannelMap();
+    const id = map?.get(channelName);
+    if (!id) return false;
+    const res = await fetch("https://slack.com/api/chat.postMessage", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${TOKEN}`,
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      body: JSON.stringify({
+        channel: id,
+        text,
+        username: "Cleared",
+        icon_emoji: ":shield:",
+      }),
+    });
+    const json = (await res.json()) as { ok: boolean; error?: string };
+    return json.ok === true;
+  } catch {
+    return false;
+  }
+}
+
 export async function getChannelContext(
   name: string,
   limit = 4,

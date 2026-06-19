@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { retrieveContext } from "@/lib/retrieval";
 import { runGatedDiagnosis } from "@/lib/gate-signals";
+import { notifyRoutingChannel } from "@/lib/notify";
 
 // Retrieval reads the filesystem (reference-library/, scenario.json), so this
 // route runs on the Node.js runtime, not edge.
@@ -37,6 +38,10 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const context = await retrieveContext(symptom);
     const output = await runGatedDiagnosis(symptom, context);
+    // Post-verdict side effect (SID-66): announce an escalate to its routing
+    // channel AFTER the verdict commits. Bounded to 2s and never throws, so it
+    // can't alter or fail the response — the verdict above is already final.
+    await notifyRoutingChannel(output);
     return NextResponse.json(output, { status: 200 });
   } catch (err) {
     const message =

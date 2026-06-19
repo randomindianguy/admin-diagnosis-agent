@@ -18,8 +18,6 @@ Cleared does that triage. It investigates the request and commits to one of thre
 
 The third one is the differentiator. Most agents in this space try to be confident. This one tries to not be wrong.
 
-Cleared reads identity from real Okta workspaces, runbook content from real Notion pages, and verifies routing channels via real Slack workspaces.
-
 ## Try the demo
 
 Open **[admin-diagnosis-agent.vercel.app](https://admin-diagnosis-agent.vercel.app)** and try these in order:
@@ -30,15 +28,19 @@ Open **[admin-diagnosis-agent.vercel.app](https://admin-diagnosis-agent.vercel.a
 
 **An escalation.** *"I joined the analytics team last week and need access to the data warehouse dashboards."* Cleared recognizes onboarding routing and sends a complete package to the identity team — who, what, why, and the recommended fix. The admin gets a triaged investigation, not a raw ticket.
 
+The workspace is real but seeded with a fixed set of users, groups, and resources. The scenarios above exercise the verdict shapes against that data; questions about resources outside the seed may not have data to ground.
+
 Toggle to **Admin** to see what an admin actually receives.
 
 ## How it works
 
-Cleared runs a fixed pipeline against retrieval, identity graph, and permission state:
+Cleared integrates with three real workspaces. Okta backs identity and group memberships. Notion backs runbook content that the agent retrieves over and reasons about. Slack backs team channel activity that appears in the admin view but never reaches the model's reasoning. This split between evidence and context is enforced architecturally, not at the prompt layer.
+
+The agent runs a fixed pipeline against retrieval, identity graph, and permission state:
 
 1. **Scope check** — workspace access question, or out of scope?
 2. **Retrieval** — look up the relevant runbook with a sufficiency threshold. Below the threshold, refuse.
-3. **Identity** — resolve memberships, including nested subgroups.
+3. **Identity** — resolve memberships from Okta, including nested subgroups.
 4. **Permission** — does the resource actually grant access?
 5. **Self-consistency** — three samples must agree before committing.
 6. **Verdict** — the model picks resolve, escalate, or refuse via tools with explicit prerequisites.
@@ -60,7 +62,7 @@ Pipeline in `eval/`. Run with `npm run eval`.
 
 ## Stack
 
-Next.js 16 · TypeScript · Tailwind · Anthropic SDK (claude-sonnet-4-6, tool-use, self-consistency) · Voyage embeddings · Zustand · Vercel.
+Next.js 14 · TypeScript · Tailwind · Anthropic SDK (claude-sonnet-4-6, tool-use, self-consistency) · Voyage embeddings · Okta + Notion + Slack APIs · Zustand · Vercel.
 
 ## Credits
 

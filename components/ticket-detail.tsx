@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import type { Submission } from "@/lib/store";
 import type { DiagnosisOutput } from "@/lib/schema";
 import { RequesterIdentity } from "./requester-identity";
@@ -11,6 +12,8 @@ import { RefusalOutput } from "./refusal-output";
 import { ErrorState } from "./error-state";
 import { timeAgo } from "@/lib/relative-time";
 import { lastAgentOutput } from "@/lib/submission";
+import { routingChannelFor } from "@/lib/operational-context";
+import type { ChannelContext } from "@/lib/sources/slack";
 
 // Live state for the ONE in-flight ticket (the just-submitted one being
 // diagnosed). When present, the trace animates (SID-59) and the package gates on
@@ -56,6 +59,26 @@ export function TicketDetail({
     output.refuse_reason !== "out_of_scope";
 
   const packageReady = isLive ? !!live?.packageReady : true;
+
+  // Operational context (SID-65) — display layer only. For a routing verdict,
+  // fetch the destination channel's recent Slack activity AFTER the verdict
+  // exists. Graceful: any failure → context stays null → no block. The detail is
+  // keyed by ticket id in the page, so this state resets when the ticket changes.
+  const channel = output ? routingChannelFor(output) : null;
+  const [context, setContext] = useState<ChannelContext | null>(null);
+  useEffect(() => {
+    if (!channel) return;
+    let cancelled = false;
+    fetch(`/api/operational-context?channel=${encodeURIComponent(channel)}`)
+      .then((r) => r.json())
+      .then((d: { context: ChannelContext | null }) => {
+        if (!cancelled) setContext(d.context ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [channel]);
 
   return (
     <div className="flex flex-col gap-lg">
@@ -129,6 +152,26 @@ export function TicketDetail({
         </>
       )}
       </div>
+
+      {/* Operational context (SID-65) — recent Slack activity in the routing
+          channel. Deliberately separated + labeled as NOT part of the verdict,
+          so the evidence/context split is visible. Absent when there's no routing
+          channel or Slack is unavailable. */}
+      {context && context.messages.length > 0 && (
+        <div className="flex flex-col gap-sm rounded-md border border-border bg-background-secondary px-md py-md motion-safe:animate-[fadeIn_250ms_ease-out]">
+          <p className="text-sm text-text-muted">
+            Recent activity in #{context.channel} — operational context, not used
+            in the verdict
+          </p>
+          <div className="flex flex-col gap-xs">
+            {context.messages.map((m, i) => (
+              <p key={i} className="text-sm text-text-secondary">
+                <span className="text-text-primary">{m.user}</span> {m.text}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

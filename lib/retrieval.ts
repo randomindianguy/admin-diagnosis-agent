@@ -22,9 +22,12 @@ import { join } from "node:path";
 import type { RetrievedEvidence } from "./schema";
 // SID-61: real workspace sources. Each returns null when not configured (e.g. the
 // eval workspace has no tokens) or on error → we fall back to synthetic data.
+// SID-65: Slack is NOT imported here. It is operational *context*, not evidence —
+// the model's inputs are strictly Okta identity + Notion knowledge. Slack lives
+// only in the display-layer path (lib/operational-context.ts), fetched after the
+// verdict commits, so it can never reach the model or the verdict contract.
 import { getOktaPicture } from "./sources/okta";
 import { getNotionCorpus } from "./sources/notion";
-import { getRoutingChannels } from "./sources/slack";
 
 // ---------------------------------------------------------------------------
 // Channel 1 — runbook similarity retrieval (Voyage embeddings)
@@ -347,37 +350,26 @@ export interface RetrievalResult {
   runbook: RankedEvidence[];
   status: StatusFacts;
   topScore: number; // max runbook similarity; feeds evidence-sufficiency (step 7)
-  // SID-61: which workspace channels exist (real Slack), so routing destinations
-  // can be verified; and where each data slice came from (live vs synthetic).
-  verifiedChannels: string[] | null;
+  // Provenance of the EVIDENCE the model reasons over (live vs synthetic). Slack
+  // is deliberately absent — it is context, not evidence (SID-65).
   sources: {
     identity: "okta" | "synthetic";
     knowledge: "notion" | "synthetic";
-    routing: "slack" | "unavailable";
   };
 }
 
 export async function retrieveContext(
   symptom: string,
 ): Promise<RetrievalResult> {
-  // retrieveRunbook sets knowledgeSource; fetchStatus sets identitySource.
+  // Evidence only: retrieveRunbook sets knowledgeSource; fetchStatus sets
+  // identitySource. No Slack here — operational context is fetched after the
+  // verdict commits (lib/operational-context.ts), never before.
   const runbook = await retrieveRunbook(symptom);
   const status = await fetchStatus(symptom);
-  const channels = await getRoutingChannels(); // real Slack verification call
   const topScore = runbook.length ? runbook[0].score : 0;
-  const sources = {
-    identity: identitySource,
-    knowledge: knowledgeSource,
-    routing: (channels ? "slack" : "unavailable") as "slack" | "unavailable",
-  };
+  const sources = { identity: identitySource, knowledge: knowledgeSource };
   console.info(
-    `[retrieval] sources → identity:${sources.identity} knowledge:${sources.knowledge} routing:${sources.routing}${channels ? ` (${channels.size} channels)` : ""}`,
+    `[retrieval] evidence → identity:${sources.identity} knowledge:${sources.knowledge}`,
   );
-  return {
-    runbook,
-    status,
-    topScore,
-    verifiedChannels: channels ? [...channels] : null,
-    sources,
-  };
+  return { runbook, status, topScore, sources };
 }

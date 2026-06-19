@@ -1,9 +1,10 @@
-// Real Slack source for routing verification (SID-61). Lists the workspace's
-// public channels so the orchestration can confirm a routing destination (an
-// escalation team, a resource owner) actually exists before recommending it.
+// Slack operational-context source (SID-65). DISPLAY-LAYER ONLY — read from the
+// admin path after a verdict commits, never by the diagnosis pipeline. Reads
+// recent messages from a team's channel so the admin trace can show that the
+// routing destination is a real, active channel.
 //
-// Returns null when not configured or on error → caller treats verification as
-// unavailable (falls back to not blocking). Memoized for the process lifetime.
+// Returns null when not configured (no token) or on any error → the caller shows
+// no context block (graceful; never an error state).
 
 type SlackChannel = { id: string; name: string };
 type ListResp = {
@@ -12,19 +13,32 @@ type ListResp = {
   channels?: SlackChannel[];
   response_metadata?: { next_cursor?: string };
 };
+type SlackMessage = {
+  text?: string;
+  user?: string;
+  username?: string; // set when the message was posted with a username override
+  subtype?: string; // channel_join etc. — skip these
+};
+type HistoryResp = { ok: boolean; error?: string; messages?: SlackMessage[] };
+
+export type ChannelContext = {
+  channel: string;
+  messages: { user: string; text: string }[];
+};
 
 const TOKEN = process.env.SLACK_BOT_TOKEN;
 
-let cache: Promise<Set<string> | null> | null = null;
+// Channel name → id, memoized (channels don't change during a session).
+let channelMap: Promise<Map<string, string> | null> | null = null;
 
-export function getRoutingChannels(): Promise<Set<string> | null> {
+function getChannelMap(): Promise<Map<string, string> | null> {
   if (!TOKEN) return Promise.resolve(null);
-  if (!cache) cache = build().catch(() => null);
-  return cache;
+  if (!channelMap) channelMap = buildMap().catch(() => null);
+  return channelMap;
 }
 
-async function build(): Promise<Set<string>> {
-  const names = new Set<string>();
+async function buildMap(): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
   let cursor: string | undefined;
   do {
     const res = await fetch(
@@ -33,8 +47,42 @@ async function build(): Promise<Set<string>> {
     );
     const json = (await res.json()) as ListResp;
     if (!json.ok) throw new Error(`Slack conversations.list → ${json.error}`);
-    for (const c of json.channels ?? []) names.add(c.name);
+    for (const c of json.channels ?? []) map.set(c.name, c.id);
     cursor = json.response_metadata?.next_cursor || undefined;
   } while (cursor);
-  return names;
+  return map;
+}
+
+export async function getChannelContext(
+  name: string,
+  limit = 4,
+): Promise<ChannelContext | null> {
+  if (!TOKEN) return null;
+  try {
+    const map = await getChannelMap();
+    const id = map?.get(name);
+    if (!id) return null;
+    // Over-fetch then filter out system messages, take the newest `limit`, and
+    // present oldest→newest so it reads chronologically.
+    const res = await fetch(
+      `https://slack.com/api/conversations.history?channel=${id}&limit=20`,
+      { headers: { Authorization: `Bearer ${TOKEN}` } },
+    );
+    const json = (await res.json()) as HistoryResp;
+    if (!json.ok) return null;
+    const messages = (json.messages ?? [])
+      // Keep real chatter (plain messages + our seeded bot_message posts); drop
+      // system events like channel_join / channel_create.
+      .filter((m) => m.text && (!m.subtype || m.subtype === "bot_message"))
+      .slice(0, limit)
+      .map((m) => ({
+        user: m.username ?? m.user ?? "someone",
+        text: m.text ?? "",
+      }))
+      .reverse();
+    if (messages.length === 0) return null;
+    return { channel: name, messages };
+  } catch {
+    return null;
+  }
 }

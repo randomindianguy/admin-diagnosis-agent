@@ -133,6 +133,12 @@ export default function Home() {
   );
   const pastSub = submissions.find((s) => s.id === pastSelectedId) ?? null;
   const mobileDetailOpen = !!active || !!pastSub;
+  // SID-69: minutes between the original request and its continuation, for the
+  // "— N min later" divider in a past ticket's read-only thread.
+  const pastGapMin =
+    pastSub?.follow_up_turns?.[0]?.at != null
+      ? Math.round((pastSub.follow_up_turns[0].at - pastSub.createdAt) / 60_000)
+      : null;
 
   // `now` anchors the "X ago" timestamps. Computed once via a lazy initializer
   // (not setState-in-effect); only ever read once the admin feed renders, which
@@ -330,6 +336,7 @@ export default function Home() {
                   selectedId={pastSelectedId}
                   now={now}
                   onSelect={handleSelectPast}
+                  final
                 />
               ) : (
                 <p className="text-sm text-text-muted">No recent tickets.</p>
@@ -394,7 +401,9 @@ export default function Home() {
                   </div>
                 </>
               ) : pastSub ? (
-                // PAST TICKET — read-only conversation (no input).
+                // PAST TICKET — read-only conversation (no input). SID-69: a
+                // continuation (clarify → resolve) renders below a muted
+                // "— N min later" divider so the two moments read as a real thread.
                 <div className="flex min-h-0 flex-1 flex-col overflow-auto px-md py-lg">
                   <div className="flex flex-col gap-md">
                     {pastSub.turns.map((t) =>
@@ -404,6 +413,25 @@ export default function Home() {
                         <EndUserCard key={t.id} output={t.output} />
                       ),
                     )}
+                    {pastSub.follow_up_turns &&
+                      pastSub.follow_up_turns.length > 0 && (
+                        <>
+                          <div className="my-xs flex items-center gap-sm" aria-hidden>
+                            <span className="h-px flex-1 bg-border" />
+                            <span className="font-mono text-[11px] text-text-muted">
+                              {pastGapMin} min later
+                            </span>
+                            <span className="h-px flex-1 bg-border" />
+                          </div>
+                          {pastSub.follow_up_turns.map((t) =>
+                            t.role === "user" ? (
+                              <UserBubble key={t.id} text={t.text} />
+                            ) : (
+                              <EndUserCard key={t.id} output={t.output} />
+                            ),
+                          )}
+                        </>
+                      )}
                   </div>
                 </div>
               ) : (

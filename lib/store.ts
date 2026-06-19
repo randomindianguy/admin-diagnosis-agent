@@ -18,8 +18,8 @@ import { seedSubmissions } from "./seed-submissions";
 export type Requester = { name: string; role: string; team: string };
 
 export type Turn =
-  | { id: string; role: "user"; text: string }
-  | { id: string; role: "agent"; output: DiagnosisOutput };
+  | { id: string; role: "user"; text: string; at?: number }
+  | { id: string; role: "agent"; output: DiagnosisOutput; at?: number };
 
 export type Submission = {
   id: string;
@@ -27,6 +27,11 @@ export type Submission = {
   turns: Turn[];
   createdAt: number;
   seen: boolean;
+  // SID-69: hand-authored continuation of a "needs detail" refuse (the user
+  // clarifies, the agent resolves). END-USER-FACING SEED DATA ONLY — the admin
+  // view reads `turns` and never this field, so it stays byte-identical. Carries
+  // its own `at` timestamps (~5–15 min after the original) for the realism divider.
+  follow_up_turns?: Turn[];
 };
 
 // The logged-in end user (matches scenario.json current_user = Alex). Stored on

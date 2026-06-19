@@ -2,23 +2,26 @@ import type { Submission } from "@/lib/store";
 import { RequesterIdentity } from "./requester-identity";
 import { VerdictPill } from "./verdict-pill";
 import { timeAgo } from "@/lib/relative-time";
-import { lastAgentOutput, firstUserText } from "@/lib/submission";
+import { lastAgentOutput, finalAgentOutput, firstUserText } from "@/lib/submission";
 
 // One ticket in the admin feed (SID-63). Shows WHO (requester), WHAT (the
-// request), and the OUTCOME (verdict pill) — final verdict only; the full thread
-// lives in the detail. Unseen tickets carry a neutral dot.
+// request), and the OUTCOME (verdict pill). SID-69: `final` makes the pill
+// reflect an end-user continuation's resolved state (follow_up_turns); the admin
+// feed omits it, so its pill stays on the original verdict (byte-identical).
 export function TicketCard({
   submission,
   selected,
   now,
   onSelect,
+  final = false,
 }: {
   submission: Submission;
   selected: boolean;
   now: number;
   onSelect: () => void;
+  final?: boolean;
 }) {
-  const output = lastAgentOutput(submission);
+  const output = final ? finalAgentOutput(submission) : lastAgentOutput(submission);
   const request = firstUserText(submission);
   return (
     <button

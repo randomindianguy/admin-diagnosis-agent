@@ -18,23 +18,80 @@ const O = {
   oos: {"verdict":"refuse_out_of_scope","refuse_reason":"out_of_scope"} as DiagnosisOutput,
 };
 
-// The distinct end-user personas (SID-68) — derived from the seed requesters,
-// de-duped by name. NO new seed data: these are exactly the people who filed the
-// seeded tickets. Alex Chen (scenario.json current_user) leads the list and is
-// the default persona.
-export const PERSONAS: Requester[] = (() => {
-  const seen = new Set<string>();
-  const list: Requester[] = [];
-  for (const sub of seedSubmissions(0)) {
-    if (!seen.has(sub.requester.name)) {
-      seen.add(sub.requester.name);
-      list.push(sub.requester);
-    }
-  }
-  return list.sort((a, b) =>
-    a.name === "Alex Chen" ? -1 : b.name === "Alex Chen" ? 1 : 0,
-  );
-})();
+// SID-69 — hand-authored resolve outputs for the two "needs detail" continuations.
+// Both are consistent with the verified seed workspace state:
+//   samResolve  — the Q3 strategy plan grants no group access and is owner-
+//     controlled by the Strategy team → resource_owner_routing (works for any
+//     requester; no group dependency). Mirrors the existing Alex Q3 resolve.
+//   danaResolve — the analytics dashboard grants analytics-team viewer; Dana is a
+//     (cross-functional) direct member → existing_group_access. Mirrors the
+//     existing "I need the analytics dashboard" clean resolve.
+// status_facts/evidence aren't rendered end-user (EndUserCard shows only the
+// verdict + diagnosis_text), but are authored plausibly for type-completeness.
+const samResolve: DiagnosisOutput = {
+  verdict: "resolve",
+  root_cause: "resource_owner_routing",
+  diagnosis_text:
+    "Checked your access — the Q3 strategy plan isn't granted through any group you're in. It's owner-controlled: the Strategy team owns it and approves access directly, one request at a time. Since it stopped opening for you, the Strategy team is who manages that — reach out to them to have your access to the Q3 strategy plan restored. There's no group membership that would unlock it.",
+  retrieved_evidence: [
+    {
+      source: "resource-ownership.md",
+      snippet:
+        "Some resources are owner-controlled: a specific person or team owns the resource and decides who gets access, one request at a time. There is no group membership that grants access — the access decision belongs to the owner.",
+    },
+  ],
+  gate_signals: { sufficiency: "pass", consistency: "pass" },
+  consistency_votes: { agree: 3, total: 3 },
+  top_similarity: 0.26,
+  status_facts: {
+    users: [
+      { id: "user:sam.okafor", name: "Sam Okafor", direct_group_memberships: [] },
+    ],
+    groups: [],
+    resources: [
+      {
+        id: "resource:q3-strategy-plan",
+        name: "Q3 strategy plan",
+        grants: [],
+        owner: "the Strategy team",
+      },
+    ],
+  },
+} as DiagnosisOutput;
+
+const danaResolve: DiagnosisOutput = {
+  verdict: "resolve",
+  root_cause: "existing_group_access",
+  diagnosis_text:
+    "Checked your access — you already have it. You're a direct member of the analytics-team group, and the analytics dashboard grants that group viewer access, so you're covered with no changes needed. Just open the analytics dashboard directly from your workspace — there's nothing to request.",
+  retrieved_evidence: [
+    {
+      source: "existing-group-access.md",
+      snippet:
+        "When a resource grants access to a group, every direct member of that group has that access immediately. If the user asking is a direct member of a granted group, the answer is to confirm they already have it and point them to where to open it.",
+    },
+  ],
+  gate_signals: { sufficiency: "pass", consistency: "pass" },
+  consistency_votes: { agree: 3, total: 3 },
+  top_similarity: 0.39,
+  status_facts: {
+    users: [
+      {
+        id: "user:dana.ruiz",
+        name: "Dana Ruiz",
+        direct_group_memberships: ["group:analytics-team"],
+      },
+    ],
+    groups: [{ id: "group:analytics-team", name: "analytics-team" }],
+    resources: [
+      {
+        id: "resource:analytics-dashboard",
+        name: "analytics dashboard",
+        grants: [{ principal: "group:analytics-team", level: "viewer" }],
+      },
+    ],
+  },
+} as DiagnosisOutput;
 
 export function seedSubmissions(now: number): Submission[] {
   return [
@@ -77,6 +134,11 @@ export function seedSubmissions(now: number): Submission[] {
         { id: "seed-resource-u", role: "user", text: "I can't open the dashboard." },
         { id: "seed-resource-a", role: "agent", output: O.resource },
       ],
+      // SID-69: Dana clarifies → clean resolve (9 min later).
+      follow_up_turns: [
+        { id: "seed-resource-u2", role: "user", text: "The analytics dashboard.", at: now - 51 * 60_000 },
+        { id: "seed-resource-a2", role: "agent", output: danaResolve, at: now - 51 * 60_000 },
+      ],
     },
     {
       id: "seed-intent",
@@ -86,6 +148,11 @@ export function seedSubmissions(now: number): Submission[] {
       turns: [
         { id: "seed-intent-u", role: "user", text: "My access broke yesterday." },
         { id: "seed-intent-a", role: "agent", output: O.intent },
+      ],
+      // SID-69: Sam clarifies → owner-routing resolve (12 min later).
+      follow_up_turns: [
+        { id: "seed-intent-u2", role: "user", text: "The Q3 strategy plan. It opened fine on Monday but now I'm getting a permission denied.", at: now - 13 * 60_000 },
+        { id: "seed-intent-a2", role: "agent", output: samResolve, at: now - 13 * 60_000 },
       ],
     },
     {
@@ -100,3 +167,22 @@ export function seedSubmissions(now: number): Submission[] {
     },
   ];
 }
+
+// The distinct end-user personas (SID-68) — derived from the seed requesters,
+// de-duped by name. NO new seed data: these are exactly the people who filed the
+// seeded tickets. Alex Chen (scenario.json current_user) leads the list and is
+// the default persona. Declared AFTER seedSubmissions + the resolve consts it
+// references, so the IIFE runs once they're initialized (SID-69 fix).
+export const PERSONAS: Requester[] = (() => {
+  const seen = new Set<string>();
+  const list: Requester[] = [];
+  for (const sub of seedSubmissions(0)) {
+    if (!seen.has(sub.requester.name)) {
+      seen.add(sub.requester.name);
+      list.push(sub.requester);
+    }
+  }
+  return list.sort((a, b) =>
+    a.name === "Alex Chen" ? -1 : b.name === "Alex Chen" ? 1 : 0,
+  );
+})();

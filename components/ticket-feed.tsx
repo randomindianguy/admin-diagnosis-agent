@@ -8,11 +8,13 @@ export function TicketFeed({
   selectedId,
   now,
   onSelect,
+  final = false,
 }: {
   submissions: Submission[];
   selectedId: string | null;
   now: number;
   onSelect: (id: string) => void;
+  final?: boolean; // SID-69: pills reflect end-user continuations (the rail)
 }) {
   const sorted = [...submissions].sort((a, b) => b.createdAt - a.createdAt);
   return (
@@ -24,6 +26,7 @@ export function TicketFeed({
             selected={s.id === selectedId}
             now={now}
             onSelect={() => onSelect(s.id)}
+            final={final}
           />
         </div>
       ))}

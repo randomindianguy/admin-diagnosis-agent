@@ -511,10 +511,10 @@ export default function Home() {
                   <div className="flex min-h-0 flex-1 flex-col justify-end overflow-auto px-md pt-lg">
                     <div className="flex flex-col gap-md pb-md">
                       <div className="flex flex-col gap-xs">
-                        <h2 className="font-display text-[28px] font-medium leading-heading tracking-display text-text-primary">
+                        <h2 className="font-display text-[28px] font-medium leading-heading tracking-display text-text-primary [text-wrap:balance]">
                           What&rsquo;s blocked?
                         </h2>
-                        <p className="font-display text-[15px] italic text-text-muted">
+                        <p className="font-display text-[15px] italic text-text-muted [text-wrap:pretty]">
                           Describe what you can&rsquo;t reach — I&rsquo;ll check
                           your access and answer, or ask one question before
                           guessing.

@@ -62,7 +62,7 @@ export function DiagnosisOutput({
               label line. */}
           <div className="flex flex-col gap-sm">
             <VerdictText output={output} />
-            <p className="whitespace-pre-wrap text-text-primary">
+            <p className="whitespace-pre-wrap text-text-primary [text-wrap:pretty]">
               {output.diagnosis_text}
             </p>
           </div>
@@ -73,7 +73,7 @@ export function DiagnosisOutput({
             <ul className="flex flex-col gap-xs">
               <li className="flex items-center justify-between gap-md">
                 <span className="text-text-secondary">Self-consistency</span>
-                <span className="text-text-primary">
+                <span className="text-text-primary tabular-nums">
                   {agree} of {total} samples agreed
                 </span>
               </li>
@@ -132,7 +132,7 @@ export function DiagnosisOutput({
             ("· Identity team") carries the routing destination. */}
         <div className="flex flex-col gap-sm">
           <VerdictText output={output} />
-          <p className="whitespace-pre-wrap text-text-primary">
+          <p className="whitespace-pre-wrap text-text-primary [text-wrap:pretty]">
             {output.diagnosis_text}
           </p>
         </div>
@@ -143,7 +143,7 @@ export function DiagnosisOutput({
           <ul className="flex flex-col gap-xs">
             <li className="flex items-center justify-between gap-md">
               <span className="text-text-secondary">Self-consistency</span>
-              <span className="text-text-primary">
+              <span className="text-text-primary tabular-nums">
                 {agree} of {total} samples agreed
               </span>
             </li>

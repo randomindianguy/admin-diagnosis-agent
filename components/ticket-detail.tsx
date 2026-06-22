@@ -88,7 +88,7 @@ export function TicketDetail({
         <RequesterIdentity requester={submission.requester} />
         <div className="flex shrink-0 items-center gap-sm">
           {output && <VerdictPill output={output} />}
-          <span className="text-sm text-text-muted">
+          <span className="text-sm text-text-muted tabular-nums">
             {timeAgo(submission.createdAt, now)}
           </span>
         </div>

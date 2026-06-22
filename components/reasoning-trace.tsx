@@ -286,7 +286,11 @@ export function ReasoningTrace({
       case 3:
         return mono(grantsSummary(data.status_facts));
       case 4:
-        return `${data.consistency_votes.agree} of ${data.consistency_votes.total} agreed`;
+        return (
+          <span className="tabular-nums">
+            {data.consistency_votes.agree} of {data.consistency_votes.total} agreed
+          </span>
+        );
       case 5:
         return (
           <span className="inline-flex items-center gap-xs">

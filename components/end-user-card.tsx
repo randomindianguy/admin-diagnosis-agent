@@ -326,7 +326,7 @@ export function EndUserCard({
 
           {/* Headline — the end-user verdict moment, in display serif (SID-67).
               Carries the synchronized loading text, then the verdict statement. */}
-          <h2 className="font-display text-[22px] font-medium leading-heading tracking-display text-text-primary">
+          <h2 className="font-display text-[22px] font-medium leading-heading tracking-display text-text-primary [text-wrap:balance]">
             {c.headline}
           </h2>
 
@@ -336,7 +336,7 @@ export function EndUserCard({
           {/* Body + next-step appear only on the verdict, and fade in AFTER the
               third dot has filled (250ms delay, held hidden via `both`). */}
           {settled && c.body && (
-            <p className="text-text-secondary motion-safe:animate-[fadeIn_250ms_ease-out_250ms_both]">
+            <p className="text-text-secondary [text-wrap:pretty] motion-safe:animate-[fadeIn_250ms_ease-out_250ms_both]">
               {c.body}
             </p>
           )}

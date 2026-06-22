@@ -21,16 +21,16 @@ export function RefusalOutput({ output }: { output: RefuseOutput }) {
     return (
       <div className="flex flex-col gap-md rounded-md border border-border p-lg">
         {/* Scope-perimeter copy (authored — SID-46 A.3). */}
-        <h2 className="font-display text-[20px] font-medium tracking-display text-text-primary">
+        <h2 className="font-display text-[20px] font-medium tracking-display text-text-primary [text-wrap:balance]">
           Outside what this assistant handles
         </h2>
-        <p className="text-text-secondary">
+        <p className="text-text-secondary [text-wrap:pretty]">
           This assistant focuses on workspace access — diagnosing why someone can
           or can&rsquo;t reach a resource, reporting on current access state, and
           recommending fixes. Some questions are routed to a human admin for
           execution.
         </p>
-        <p className="text-text-secondary">
+        <p className="text-text-secondary [text-wrap:pretty]">
           It doesn&rsquo;t execute access changes, handle configuration, answer
           policy questions, or provide general IT support.
         </p>

@@ -49,7 +49,7 @@ export function PersonaToggle({
             {o.label}
             {showIndicator &&
               (unseenCount > 1 ? (
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-pill bg-text-primary px-[3px] text-[10px] font-bold text-background-primary">
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-pill bg-text-primary px-[3px] text-[10px] font-bold tabular-nums text-background-primary">
                   {unseenCount}
                 </span>
               ) : (

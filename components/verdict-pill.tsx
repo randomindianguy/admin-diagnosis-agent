@@ -69,7 +69,7 @@ export function VerdictText({
   const v = verdictVisual(output);
   return (
     <p
-      className={`font-display font-medium leading-heading tracking-display ${TONE[v.tone].text} ${className}`}
+      className={`font-display font-medium leading-heading tracking-display [text-wrap:balance] ${TONE[v.tone].text} ${className}`}
     >
       {v.word}
       {v.detail && (

@@ -43,7 +43,7 @@ export function TicketCard({
               aria-label="Unseen"
             />
           )}
-          <span className="text-sm text-text-muted">
+          <span className="text-sm text-text-muted tabular-nums">
             {timeAgo(submission.createdAt, now)}
           </span>
         </div>

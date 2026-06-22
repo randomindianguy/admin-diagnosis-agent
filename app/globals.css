@@ -115,6 +115,7 @@
   font-weight: 500;
   line-height: 1.2;
   color: #f2ede3;
+  text-wrap: balance;
 }
 .cleared-tour .driver-popover-description {
   font-family: var(--font-sans), system-ui, sans-serif;
@@ -123,6 +124,7 @@
   line-height: 1.5;
   color: #f2ede3;
   margin: 0 0 16px;
+  text-wrap: pretty;
 }
 .cleared-tour .driver-popover-footer {
   margin-top: 0;

@@ -49,6 +49,27 @@ export type GateSignals = {
 // gated decision (resolve and gate-overridden escalate); refuse skips the gate.
 export type ConsistencyVotes = { agree: number; total: number };
 
+// SID-70: the action an admin can take on an escalate, derived deterministically
+// at assembly time (lib/gate-signals.ts) from status_facts — NOT model-generated.
+//   add_to_group  — a concrete provisioning the closed loop can execute: the user
+//     isn't in a group the resource grants to. Approvable in-app (real Okta write).
+//   team_routing  — requires human judgement beyond Cleared's reach. Stays in
+//     Slack mode; slack_permalink is captured post-verdict (lib/notify.ts) for the
+//     end-user "view in Slack" link (SID-66 → SID-70).
+export type ApprovalAction =
+  | {
+      type: "add_to_group";
+      user_id: string; // re-keyed "user:<login-local>" — resolved to Okta id at approval time
+      group_id: string; // re-keyed "group:<name>"
+      group_name: string;
+    }
+  | {
+      type: "team_routing";
+      team: string;
+      slack_channel: string;
+      slack_permalink?: string; // attached by the route after the post (SID-70 Phase 2)
+    };
+
 export type DiagnosisOutput =
   | {
       verdict: "resolve";
@@ -69,6 +90,10 @@ export type DiagnosisOutput =
       consistency_votes: ConsistencyVotes;
       top_similarity: number; // top runbook cosine similarity (retrieval channel 1)
       status_facts: StatusFacts; // identity-graph slice for the reasoning trace (SID-48 B)
+      // SID-70: the admin action for this escalate, derived from status_facts at
+      // assembly. Optional so frozen seed escalates (no field) type-check; only
+      // live escalates carry it (seeds stay non-approvable by design).
+      approval_action?: ApprovalAction;
     }
   | {
       // Refuse skips the gate (gate-signals.ts short-circuit) — no evidence,

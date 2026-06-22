@@ -4,10 +4,14 @@
 // reading the Slack message can still ignore a wrong verdict, same as today.
 //
 // Hard guarantees (load-bearing):
-//   - Only escalate verdicts to a real team channel post (escalationChannelFor).
+//   - Only TEAM-ROUTED escalates post (SID-70): add_to_group escalates are now
+//     handled in-app via the approval flow, so they no longer Slack-post — the
+//     action lives where the actor acts. Team-routed escalates stay in Slack mode.
 //   - Bounded to 2s and never throws → Slack latency/failure can't fail the
 //     diagnosis. The 200 response is byte-identical whether or not the post lands.
 //   - Missing/invalid token → no channel resolves → skip silently.
+//   - On success it returns the message permalink (SID-70) so the route can put it
+//     on approval_action.team_routing for the end-user "view in Slack" link.
 //
 // Eval never reaches this: it calls diagnose()/retrieveContext directly, not the
 // route. So eval stays green by construction.
@@ -50,15 +54,20 @@ function buildMessage(
   return lines.join("\n");
 }
 
-export async function notifyRoutingChannel(output: DiagnosisOutput): Promise<void> {
+// Returns the posted message's Slack permalink on success, else undefined.
+export async function notifyRoutingChannel(
+  output: DiagnosisOutput,
+): Promise<string | undefined> {
+  // SID-70: only team-routed escalates post. add_to_group escalates are approved
+  // in-app, so they skip Slack entirely.
+  if (output.verdict !== "escalate" || output.approval_action?.type !== "team_routing") {
+    return undefined;
+  }
   const channel = escalationChannelFor(output);
-  if (!channel) return; // resolve / refuse / no-team-channel escalate → no post
-  // output is necessarily an escalate variant here (escalationChannelFor guards).
-  const text = buildMessage(
-    output as Extract<DiagnosisOutput, { verdict: "escalate" }>,
-  );
+  if (!channel) return undefined; // no real team channel → no post
+  const text = buildMessage(output);
   try {
-    const posted = await Promise.race([
+    const result = await Promise.race([
       postNotification(channel, text),
       new Promise<never>((_, reject) =>
         setTimeout(
@@ -67,16 +76,18 @@ export async function notifyRoutingChannel(output: DiagnosisOutput): Promise<voi
         ),
       ),
     ]);
-    if (!posted) {
+    if (!result.ok) {
       console.warn(`[notify] Slack post to #${channel} skipped (no token / unknown channel / rejected).`);
-    } else {
-      console.info(`[notify] Posted escalate verdict to #${channel}.`);
+      return undefined;
     }
+    console.info(`[notify] Posted escalate verdict to #${channel}.`);
+    return result.permalink;
   } catch (err) {
     // Timeout or unexpected throw — log and continue. The verdict already stands.
     console.warn(
       `[notify] Slack post to #${channel} failed:`,
       err instanceof Error ? err.message : err,
     );
+    return undefined;
   }
 }

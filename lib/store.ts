@@ -15,11 +15,23 @@ import { seedSubmissions } from "./seed-submissions";
 // Frontend state only (Q1): the diagnosis backend is single-shot and stateless;
 // conversation continuity is a UI concern, lost on refresh (reset is a feature).
 
-export type Requester = { name: string; role: string; team: string };
+// SID-70: userId is the Okta identity (re-keyed "user:<login-local>") the backend
+// reasons against for this persona's live submissions. Optional for backward
+// compatibility, but every persona in PERSONAS carries one.
+export type Requester = { name: string; role: string; team: string; userId?: string };
 
 export type Turn =
   | { id: string; role: "user"; text: string; at?: number }
   | { id: string; role: "agent"; output: DiagnosisOutput; at?: number };
+
+// SID-70 closed-loop state machine. Undefined = a non-escalate or seeded/legacy
+// submission (end-user display unchanged). Live escalates land in pending_* on
+// submit; the admin's approve/deny moves add_to_group ones to approved/denied.
+export type SubmissionStatus =
+  | "pending_approval" // add_to_group escalate, awaiting admin
+  | "pending_team" // team_routing escalate, out-of-band
+  | "approved"
+  | "denied";
 
 export type Submission = {
   id: string;
@@ -27,6 +39,8 @@ export type Submission = {
   turns: Turn[];
   createdAt: number;
   seen: boolean;
+  status?: SubmissionStatus; // SID-70
+  decidedAt?: number; // when approved/denied — for the "· just now" stamp
   // SID-69: hand-authored continuation of a "needs detail" refuse (the user
   // clarifies, the agent resolves). END-USER-FACING SEED DATA ONLY — the admin
   // view reads `turns` and never this field, so it stays byte-identical. Carries
@@ -40,6 +54,7 @@ export const CURRENT_USER: Requester = {
   name: "Alex Chen",
   role: "Analyst",
   team: "Analytics team",
+  userId: "user:alex.chen",
 };
 
 // Monotonic id generator — stable, SSR-safe (no crypto/Date in the hot path),
@@ -60,6 +75,8 @@ type SubmissionsState = {
   seed: () => void; // pre-load the demo tickets once (SID-63)
   selectTicket: (id: string) => void; // admin picks a feed ticket
   markAllSeen: () => void; // clears the unseen indicator (on toggle → Admin)
+  approveSubmission: (id: string) => void; // SID-70: admin approved (after Okta write)
+  denySubmission: (id: string) => void; // SID-70: admin denied (no Okta write)
 };
 
 // Map over submissions, replacing the active one via `fn`.
@@ -117,6 +134,15 @@ export const useSubmissions = create<SubmissionsState>((set) => ({
       withActive(s, (sub) => ({
         ...sub,
         turns: [...sub.turns, { id: turnId, role: "agent", output }],
+        // SID-70: a live escalate with an approval_action enters the state machine.
+        // add_to_group → in-app approval; team_routing → out-of-band. Other verdicts
+        // leave status untouched (end-user display unchanged).
+        status:
+          output.verdict === "escalate" && output.approval_action
+            ? output.approval_action.type === "add_to_group"
+              ? "pending_approval"
+              : "pending_team"
+            : sub.status,
       })),
     ),
 
@@ -143,6 +169,24 @@ export const useSubmissions = create<SubmissionsState>((set) => ({
     set((s) => ({
       submissions: s.submissions.map((sub) =>
         sub.seen ? sub : { ...sub, seen: true },
+      ),
+    })),
+
+  // SID-70: state transitions after the admin acts. approveSubmission is called
+  // only AFTER the Okta write succeeds (the route confirms ok) — never optimistic,
+  // so the UI can't show "approved" while Okta stayed unchanged. Deny has no Okta
+  // write, so it transitions directly.
+  approveSubmission: (id) =>
+    set((s) => ({
+      submissions: s.submissions.map((sub) =>
+        sub.id === id ? { ...sub, status: "approved", decidedAt: Date.now() } : sub,
+      ),
+    })),
+
+  denySubmission: (id) =>
+    set((s) => ({
+      submissions: s.submissions.map((sub) =>
+        sub.id === id ? { ...sub, status: "denied", decidedAt: Date.now() } : sub,
       ),
     })),
 }));

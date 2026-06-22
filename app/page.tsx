@@ -176,15 +176,19 @@ export default function Home() {
     (query: string, agentId: string) => {
       setTraceSettled(false);
       setSubmitKey((k) => k + 1);
-      diagnose.mutate(query, {
-        onSuccess: (output) => {
-          addAgentTurn(output, agentId);
-          setPendingAgentId(null);
-          setResolveKey((k) => k + 1);
+      // SID-70: reason against the active persona's real Okta identity.
+      diagnose.mutate(
+        { symptom: query, personaUserId: currentPersona.userId },
+        {
+          onSuccess: (output) => {
+            addAgentTurn(output, agentId);
+            setPendingAgentId(null);
+            setResolveKey((k) => k + 1);
+          },
         },
-      });
+      );
     },
-    [diagnose, addAgentTurn],
+    [diagnose, addAgentTurn, currentPersona.userId],
   );
 
   // Live trace state for the in-flight selected ticket (after runDiagnose so the
@@ -373,13 +377,18 @@ export default function Home() {
                         t.role === "user" ? (
                           <UserBubble key={t.id} text={t.text} />
                         ) : (
-                          <EndUserCard key={t.id} output={t.output} />
+                          <EndUserCard
+                            key={t.id}
+                            output={t.output}
+                            status={active?.status}
+                          />
                         ),
                       )}
                       {pendingAgentId && !diagnose.isError && (
                         <EndUserCard
                           key={pendingAgentId}
                           output={diagnose.data ?? null}
+                          status={active?.status}
                         />
                       )}
                       {pendingAgentId && diagnose.isError && (
@@ -410,7 +419,11 @@ export default function Home() {
                       t.role === "user" ? (
                         <UserBubble key={t.id} text={t.text} />
                       ) : (
-                        <EndUserCard key={t.id} output={t.output} />
+                        <EndUserCard
+                          key={t.id}
+                          output={t.output}
+                          status={pastSub.status}
+                        />
                       ),
                     )}
                     {pastSub.follow_up_turns &&
@@ -427,7 +440,11 @@ export default function Home() {
                             t.role === "user" ? (
                               <UserBubble key={t.id} text={t.text} />
                             ) : (
-                              <EndUserCard key={t.id} output={t.output} />
+                              <EndUserCard
+                          key={t.id}
+                          output={t.output}
+                          status={pastSub.status}
+                        />
                             ),
                           )}
                         </>

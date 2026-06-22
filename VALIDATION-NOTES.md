@@ -17,10 +17,10 @@
 | wrong | PASS | FAIL | FAIL | FAIL |
 
 ### Judge reasoning (supplementary — captured, not graded)
-- **good · criterion_1 (mechanism) → yes:** The diagnosis explicitly states that Maya is a member of "data-team-ml, which is nested under data-team," and directly explains that "access grants on a parent group don't propagate down to nested subgroups," clearly identifying that the subgroup does not inherit access from the parent group.
-- **good · criterion_2 (reconciliation) → yes:** The diagnosis explicitly names both the group the operator checked ("data-team") and the actual subgroup Maya is a direct member of ("data-team-ml"), directly correcting the operator's claim about group membership verification.
-- **wrong · criterion_1 (mechanism) → no:** The diagnosis attributes the issue to a propagation timing delay, not to Maya being in a nested subgroup that doesn't inherit access from the parent group. There is no mention of nested subgroup inheritance issues.
-- **wrong · criterion_2 (reconciliation) → no:** The diagnosis does not mention the operator's claim about checking group membership correctly, nor does it name both the group the operator checked and the actual subgroup the user is a direct member of. It only references "data-team" and attributes the issue to a propagation timing delay.
+- **good · criterion_1 (mechanism) → yes:** The diagnosis explicitly states that Maya is a member of "data-team-ml," which is a nested subgroup under "data-team," and directly explains that access grants on the parent group don't propagate down to nested subgroups — precisely matching the criterion.
+- **good · criterion_2 (reconciliation) → yes:** The diagnosis explicitly names both the group the operator checked ("data-team") and the actual subgroup Maya is a direct member of ("data-team-ml"), directly correcting the operator's claim that they checked group membership correctly.
+- **wrong · criterion_1 (mechanism) → no:** The diagnosis attributes the issue to a propagation timing delay, not to Maya being in a nested subgroup that does not inherit access from the parent group. There is no mention of nested subgroup inheritance as the cause.
+- **wrong · criterion_2 (reconciliation) → no:** The diagnosis does not mention any operator claim about checking group membership, nor does it identify both a group the operator checked and a separate subgroup the user is actually a direct member of. It only references "data-team" and attributes the issue to propagation delay.
 
 ## 3. Why each report is correct
 

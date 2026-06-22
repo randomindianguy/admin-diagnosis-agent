@@ -3,6 +3,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Check, AlertTriangle, Info, Loader2 } from "lucide-react";
 import type { DiagnosisOutput } from "@/lib/schema";
+import type { SubmissionStatus } from "@/lib/store";
+import { RESOURCE_URLS } from "@/lib/resource-urls";
 import { OutcomeCard } from "./outcome-card";
 import { usePrefersReducedMotion } from "@/hooks/use-trace-reveal";
 
@@ -225,7 +227,74 @@ function loadingContent(phase: LoadingPhase): CardContent {
   };
 }
 
-export function EndUserCard({ output }: { output: DiagnosisOutput | null }) {
+// SID-70: the closed-loop follow-up line for an escalate, rendered IN PLACE of the
+// default next-step once the submission has a downstream status. Quiet (next-step
+// weight); links open in a new tab. Returns null for pending_approval / non-
+// escalate → the default next-step shows. (Timeline is untouched — option a.)
+function approvalLine(
+  output: DiagnosisOutput,
+  status: SubmissionStatus | undefined,
+): ReactNode | null {
+  if (output.verdict !== "escalate" || !status) return null;
+  const linkCls = "text-accent underline-offset-2 hover:underline";
+
+  if (status === "approved") {
+    const aa = output.approval_action;
+    const resourceName =
+      aa?.type === "add_to_group"
+        ? output.status_facts.resources.find((r) =>
+            r.grants.some((g) => g.principal === aa.group_id),
+          )?.name
+        : undefined;
+    const url = resourceName ? RESOURCE_URLS[resourceName] : "";
+    return (
+      <p className="text-sm text-text-muted motion-safe:animate-[fadeIn_250ms_ease-out]">
+        ✓ Approved by you.{" "}
+        {resourceName
+          ? `You now have access to ${resourceName}. `
+          : "Access granted. "}
+        {url && (
+          <a href={url} target="_blank" rel="noopener noreferrer" className={linkCls}>
+            Open in Notion →
+          </a>
+        )}
+      </p>
+    );
+  }
+
+  if (status === "denied") {
+    return (
+      <p className="text-sm text-text-muted">Your request was denied.</p>
+    );
+  }
+
+  if (status === "pending_team") {
+    const aa = output.approval_action;
+    const team = ownerLabel(
+      aa?.type === "team_routing" ? aa.team : output.owner,
+    );
+    const link = aa?.type === "team_routing" ? aa.slack_permalink : undefined;
+    return (
+      <p className="text-sm text-text-muted">
+        Routed to {team}.{" "}
+        {link && (
+          <a href={link} target="_blank" rel="noopener noreferrer" className={linkCls}>
+            View conversation in Slack →
+          </a>
+        )}
+      </p>
+    );
+  }
+  return null; // pending_approval → default next-step
+}
+
+export function EndUserCard({
+  output,
+  status,
+}: {
+  output: DiagnosisOutput | null;
+  status?: SubmissionStatus;
+}) {
   const reduced = usePrefersReducedMotion();
   // Time-paced loading: Filed at mount, Checked ~400ms later. Reduced-motion
   // snaps straight to "checked" (both lit, no stagger) via the initial state —
@@ -271,11 +340,17 @@ export function EndUserCard({ output }: { output: DiagnosisOutput | null }) {
               {c.body}
             </p>
           )}
-          {settled && c.nextStep && (
-            <p className="text-sm text-text-muted motion-safe:animate-[fadeIn_250ms_ease-out_350ms_both]">
-              {c.nextStep}
-            </p>
-          )}
+          {/* SID-70: once an escalate has a downstream status, its follow-up line
+              (approved + Notion link / denied / routed + Slack link) replaces the
+              default next-step. Other states keep the default next-step. */}
+          {settled &&
+            output &&
+            (approvalLine(output, status) ??
+              (c.nextStep ? (
+                <p className="text-sm text-text-muted motion-safe:animate-[fadeIn_250ms_ease-out_350ms_both]">
+                  {c.nextStep}
+                </p>
+              ) : null))}
         </div>
       </OutcomeCard>
     </div>

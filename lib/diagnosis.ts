@@ -264,9 +264,19 @@ function formatStatusFacts(status: StatusFacts): string {
 
   const lines: string[] = [];
   for (const u of status.users) {
-    const memberships =
-      u.direct_group_memberships.map(name).join(", ") || "(none)";
-    lines.push(`- User "${u.name}" is a DIRECT member of: ${memberships}`);
+    // Spell out the zero-group case unmistakably (SID-70): a user with no
+    // memberships has NO group-based access, so a resource that grants only to
+    // groups is unreachable for them — never claim existing access. Users WITH
+    // groups render exactly as before (drift-safe).
+    if (u.direct_group_memberships.length === 0) {
+      lines.push(
+        `- User "${u.name}" is a DIRECT member of NO groups — they belong to zero groups and therefore have no group-based access to anything.`,
+      );
+    } else {
+      lines.push(
+        `- User "${u.name}" is a DIRECT member of: ${u.direct_group_memberships.map(name).join(", ")}`,
+      );
+    }
   }
   for (const g of status.groups) {
     lines.push(

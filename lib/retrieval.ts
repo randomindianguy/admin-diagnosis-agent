@@ -247,9 +247,16 @@ async function buildPicture(): Promise<{
   return synthetic;
 }
 
-export async function fetchStatus(symptom: string): Promise<StatusFacts> {
+export async function fetchStatus(
+  symptom: string,
+  personaUserId?: string,
+): Promise<StatusFacts> {
   const { picture, currentUserId } = await buildPicture();
   const haystack = norm(symptom);
+  // SID-70: the persona who submitted is the "current user" for first-person
+  // requests, overriding scenario.json's fixed current_user. Falls back to the
+  // scenario value when no persona id is supplied (e.g. eval's direct calls).
+  const effectiveCurrentUserId = personaUserId ?? currentUserId;
 
   // 1. Users referenced by full name or a significant name token ("Maya").
   const named = picture.users.filter((u) => {
@@ -263,8 +270,8 @@ export async function fetchStatus(symptom: string): Promise<StatusFacts> {
   // have an identity to reason about. A message that DID name someone keeps that
   // binding (so Maya's scenario is unaffected).
   const currentUser =
-    named.length === 0 && currentUserId
-      ? picture.users.filter((u) => u.id === currentUserId)
+    named.length === 0 && effectiveCurrentUserId
+      ? picture.users.filter((u) => u.id === effectiveCurrentUserId)
       : [];
   const matchedUsers = named.length > 0 ? named : currentUser;
 
@@ -360,12 +367,15 @@ export interface RetrievalResult {
 
 export async function retrieveContext(
   symptom: string,
+  personaUserId?: string,
 ): Promise<RetrievalResult> {
   // Evidence only: retrieveRunbook sets knowledgeSource; fetchStatus sets
   // identitySource. No Slack here — operational context is fetched after the
   // verdict commits (lib/operational-context.ts), never before.
+  // SID-70: personaUserId binds the first-person "current user" to the persona
+  // who actually submitted, instead of scenario.json's fixed current_user.
   const runbook = await retrieveRunbook(symptom);
-  const status = await fetchStatus(symptom);
+  const status = await fetchStatus(symptom, personaUserId);
   const topScore = runbook.length ? runbook[0].score : 0;
   const sources = { identity: identitySource, knowledge: knowledgeSource };
   console.info(

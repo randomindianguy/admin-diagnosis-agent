@@ -7,7 +7,20 @@
 // Alex/Maya; the three agnostic refuses (which assert no one's memberships) carry
 // distinct requesters for feed range.
 import type { DiagnosisOutput } from "./schema";
+// Type-only import from store — keeps this module free of a runtime cycle
+// (store imports seedSubmissions as a value; a value import back would TDZ the
+// PERSONAS IIFE at module load).
 import type { Submission, Requester } from "./store";
+
+// SID-70: the pre-created Okta test user (no starting groups) — the 6th persona,
+// the one whose closed-loop request the reviewer approves. Defined here (not in
+// store) so PERSONAS can reference it without a circular value import.
+export const DEMO_USER: Requester = {
+  name: "Demo User",
+  role: "Test User",
+  team: "Demo",
+  userId: "user:demo.user",
+};
 
 const O = {
   nested: {"verdict":"resolve","root_cause":"nested_subgroup_inheritance_gap","diagnosis_text":"Checked your access — the Q3 Revenue Models folder grants viewer access to the data-team group, but you are not a direct member of data-team. You are a direct member of data-team-ml, which is a subgroup nested under data-team. By default, grants on a parent group do not propagate down to members of nested subgroups, so your membership in data-team-ml does not give you the viewer grant that data-team holds on this folder.\n\nThe fix is for an admin to add the viewer grant on Q3 Revenue Models directly to the data-team-ml group (Option A, the standard fix), which would immediately cover you and your teammates in that subgroup without changing the group structure. Alternatively, you could be added as a direct member of data-team itself, though that is typically only done if the subgroup boundary was not intentional. Please pass this diagnosis to your IT admin or group owner so they can apply the appropriate fix.","retrieved_evidence":[{"source":"nested-group-inheritance.md","snippet":"# Nested-group inheritance and access propagation\n\n**Tags:** nested-group inheritance, access propagation, subgroup membership, membership-level checks\n\n## Symptom\n\nA user cannot open a folder, file, or shared resource in Drive that their team is supposed to have access to. They are a member of the team and appear under the team's group, but still get \"permission denied\" or no access when they try to open it. The team's group does have a grant on the resource, which makes the block surprising.\n\n## The default behavior\n\nWhen a group grants access to a resource, that grant applies to **direct members** of the group. By default, the grant does **not** propagate down to members of nested subgroups.\n\nIf `group-parent` has a grant on a resource, and `group-child` is nested under `group-parent`, then:\n\n- Users who are direct members of `group-parent` get access via the grant.\n- Users who are direct members of `group-child` (but **not** also direct members of `group-parent`) do **not** automatically inherit access.\n\nThis catches operators by surprise because the UI often shows the nested group hierarchy in a way that suggests inheritance. It does not.\n\n## How to check actual membership level\n\nWhen diagnosing an access issue, do not stop at \"the user is in `group-parent`'s tree somewhere.\" Check **which specific group the user is a direct member of.**\n\nIn the admin console:\n\n1. Open the user's profile.\n2. Look at the \"Direct group memberships\" field — not the \"All groups\" or expanded-tree view.\n3. The direct-membership entry is the one that determines which grants apply.\n\nA user can appear under a parent group's tree (because they're in a nested subgroup) without being a direct member of the parent. The grant level is decided by **direct membership only.**\n\n## The fix\n\nWhen a user lacks access because they're in a nested subgroup that doesn't inherit:\n\n- **Option A**: Add the grant directly to the nested subgroup (e.g., grant `group-child` access to the resource alongside `group-parent`).\n- **Option B**: Move the user up to direct membership in `group-parent`. Usually only correct if the nested subgroup wasn't meaningful in the first place.\n\nOption A is the standard fix because it preserves the subgroup's purpose. Option B is only correct if the subgroup boundary was a mistake.\n\n## Reconciling with operator claims\n\nA common operator error: \"I checked, the user is in the group that has access.\" This claim is often based on viewing the expanded group tree (which shows the user under the parent) rather than the direct-membership field (which would show the user is only in the nested subgroup).\n\nWhen this happens, the correction is to name both levels explicitly: which group the operator checked (the parent, with the grant) and which group the user is actually a direct member of (the nested subgroup, without inheritance).\n"},{"source":"existing-group-access.md","snippet":"# Confirming access a user already has through a group\n\n**Tags:** existing access, group membership grants, already have access, where to find a resource, dashboards and shared resources\n\n## The common case: access is already there\n\nNot every access request is a failure. A frequent pattern is a user asking for access to a resource they **already have** — usually because the resource grants access to a group they are a direct member of, and they simply haven't found it yet or didn't realize the grant covers them.\n\nWhen a resource grants access to a group, every **direct member** of that group has that access immediately. If the user asking is a direct member of a granted group, the answer is not to provision anything — it is to confirm they already have it and point them to where to open it.\n\n## How to check\n\n1. Look at the resource's grants — which groups (or users) it grants, and at what level (viewer, editor).\n2. Look at the user's direct group memberships.\n3. If the user is a direct member of a group the resource grants to, they already have access at that level. No change is needed.\n\n## What to tell the user\n\nConfirm it plainly: they already have access through the named group, and at what level (e.g. viewer). Then give them the action that unblocks them — open the resource directly from the workspace, or use the direct link. Do not route this to an admin; there is nothing to provision.\n\nIf the user reports they still cannot open it after confirming the grant, that is a different problem (propagation lag, an explicit deny, or a stale session) and should be diagnosed separately.\n"},{"source":"resource-ownership.md","snippet":"# Owner-controlled resources and requesting access from the owner\n\n**Tags:** resource owner, owned by, request access, no group grants access, owner-controlled documents and plans\n\n## When no group grants access\n\nSome resources are not provisioned through team groups at all. They are **owner-controlled**: a specific person or team owns the resource and decides who gets access, one request at a time. Strategy documents, planning files, and other sensitive single-owner resources are commonly set up this way.\n\nFor these resources there is no group membership that grants access. A user who is not on the owner's access list has no path to the resource through any group they belong to — and adding them to a group will not help, because the resource does not grant to a group.\n\n## How to recognize this case\n\n1. Check the resource's grants. If it grants to no group the user is in — or to no group at all — group membership is not the route.\n2. Check the resource's owner. An owner-controlled resource names an owning person or team.\n3. If both are true (no group path, and there is an owner), the access decision belongs to the owner.\n\n## What to tell the user\n\nThis is a resolvable, self-serve answer — the user does not need an admin. Tell them who owns the resource and that access is granted by the owner, then give them the action: use the resource's Request Access control, which routes the request to the owner for approval. Name the owner so they know who will be deciding.\n\nDo not escalate owner-controlled access requests to the identity or support teams — those teams do not own the resource and cannot grant it. The owner does.\n"},{"source":"onboarding-team-access.md","snippet":"# Onboarding gaps: new team members missing baseline group access\n\n**Tags:** onboarding, new hire, new team member, baseline group membership, team access provisioning, data warehouse access, identity team provisioning\n\n## Baseline access for a team\n\nMost teams have a baseline set of group memberships that every member is expected to have. Those memberships are what grant access to the team's shared resources. When onboarding works, a new member is added to the team's baseline groups and inherits the team's access automatically.\n\nFor example, members of the analytics team are expected to be in the **data-team** group, because the data warehouse dashboards (and other shared data resources) grant access to data-team. An analytics member who is in their team's group but **not** in data-team will be blocked from those data resources even though their teammates are not.\n\n## How to recognize an onboarding gap\n\n1. The user is new to the team (recently joined) and is requesting access they have never had.\n2. The resource grants to a baseline group (e.g. data-team) that the team is expected to be in.\n3. The user is not yet a member of that baseline group.\n\nThis is not a diagnosis of a broken mechanism — the user simply has not been provisioned into the group they should have. It is a new-access request that requires authorization.\n\n## What to do\n\nGranting a new group membership is an admin action — it cannot be self-served by the user, and it requires someone to authorize the new access. Route it to the **identity team**, who own group membership and provisioning.\n\nHand off a complete package so the user does not have to re-explain: who they are (new member, which team), what they are blocked from, why (the resource requires the baseline group and they are not in it), and the recommended fix (add them to the specific group). Do not promise a specific turnaround time — the timing is the admin's to set.\n"}],"gate_signals":{"sufficiency":"pass","consistency":"pass"},"consistency_votes":{"agree":3,"total":3},"top_similarity":0.37364459170740477,"status_facts":{"users":[{"id":"user:maya.r","name":"Maya R.","direct_group_memberships":["group:data-team-ml"]}],"groups":[{"id":"group:data-team","name":"data-team"},{"id":"group:data-team-ml","name":"data-team-ml","parent":"group:data-team"}],"resources":[{"id":"resource:q3-revenue-models","name":"Q3 Revenue Models","grants":[{"principal":"group:data-team","level":"viewer"}]},{"id":"resource:data-warehouse-dashboards","name":"data warehouse dashboards","grants":[{"principal":"group:data-team","level":"viewer"}]}]}} as DiagnosisOutput,
@@ -97,7 +110,7 @@ export function seedSubmissions(now: number): Submission[] {
   return [
     {
       id: "seed-nested",
-      requester: {"name":"Maya Rao","role":"Data Analyst","team":"Data"},
+      requester: {"name":"Maya Rao","role":"Data Analyst","team":"Data","userId":"user:maya.r"},
       seen: true,
       createdAt: now - 1440 * 60_000,
       turns: [
@@ -107,7 +120,7 @@ export function seedSubmissions(now: number): Submission[] {
     },
     {
       id: "seed-onboarding",
-      requester: {"name":"Alex Chen","role":"Analyst","team":"Analytics"},
+      requester: {"name":"Alex Chen","role":"Analyst","team":"Analytics","userId":"user:alex.chen"},
       seen: true,
       createdAt: now - 300 * 60_000,
       turns: [
@@ -117,7 +130,7 @@ export function seedSubmissions(now: number): Submission[] {
     },
     {
       id: "seed-owner",
-      requester: {"name":"Alex Chen","role":"Analyst","team":"Analytics"},
+      requester: {"name":"Alex Chen","role":"Analyst","team":"Analytics","userId":"user:alex.chen"},
       seen: true,
       createdAt: now - 180 * 60_000,
       turns: [
@@ -127,7 +140,7 @@ export function seedSubmissions(now: number): Submission[] {
     },
     {
       id: "seed-resource",
-      requester: {"name":"Dana Ruiz","role":"Product Designer","team":"Design"},
+      requester: {"name":"Dana Ruiz","role":"Product Designer","team":"Design","userId":"user:dana.ruiz"},
       seen: true,
       createdAt: now - 60 * 60_000,
       turns: [
@@ -142,7 +155,7 @@ export function seedSubmissions(now: number): Submission[] {
     },
     {
       id: "seed-intent",
-      requester: {"name":"Sam Okafor","role":"Engineer","team":"Engineering"},
+      requester: {"name":"Sam Okafor","role":"Engineer","team":"Engineering","userId":"user:sam.okafor"},
       seen: true,
       createdAt: now - 25 * 60_000,
       turns: [
@@ -157,7 +170,7 @@ export function seedSubmissions(now: number): Submission[] {
     },
     {
       id: "seed-oos",
-      requester: {"name":"Tom Becker","role":"Account Exec","team":"Sales"},
+      requester: {"name":"Tom Becker","role":"Account Exec","team":"Sales","userId":"user:tom.becker"},
       seen: true,
       createdAt: now - 8 * 60_000,
       turns: [
@@ -182,7 +195,11 @@ export const PERSONAS: Requester[] = (() => {
       list.push(sub.requester);
     }
   }
-  return list.sort((a, b) =>
+  list.sort((a, b) =>
     a.name === "Alex Chen" ? -1 : b.name === "Alex Chen" ? 1 : 0,
   );
+  // SID-70: Demo User is the 6th persona (not a seed-ticket requester), appended
+  // last so the reviewer can pick it to drive the closed-loop approval demo.
+  list.push(DEMO_USER);
+  return list;
 })();

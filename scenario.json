@@ -21,6 +21,26 @@
           "id": "user:alex.chen",
           "name": "Alex Chen",
           "direct_group_memberships": ["group:analytics-team"]
+        },
+        {
+          "id": "user:dana.ruiz",
+          "name": "Dana Ruiz",
+          "direct_group_memberships": ["group:analytics-team"]
+        },
+        {
+          "id": "user:sam.okafor",
+          "name": "Sam Okafor",
+          "direct_group_memberships": []
+        },
+        {
+          "id": "user:tom.becker",
+          "name": "Tom Becker",
+          "direct_group_memberships": []
+        },
+        {
+          "id": "user:demo.user",
+          "name": "Demo User",
+          "direct_group_memberships": []
         }
       ],
       "groups": [

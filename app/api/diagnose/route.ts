@@ -33,15 +33,33 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
+  // SID-70: optional persona identity — the backend reasons against this user's
+  // real Okta identity instead of scenario.json's fixed current_user.
+  const rawPersona = (body as { personaUserId?: unknown }).personaUserId;
+  const personaUserId =
+    typeof rawPersona === "string" && rawPersona.length > 0
+      ? rawPersona
+      : undefined;
+
   // --- Pipeline. The try wraps ONLY retrieve → gate, so its catch returns 500
   //     exclusively for upstream/internal failure — not for client input. ---
   try {
-    const context = await retrieveContext(symptom);
+    const context = await retrieveContext(symptom, personaUserId);
     const output = await runGatedDiagnosis(symptom, context);
-    // Post-verdict side effect (SID-66): announce an escalate to its routing
-    // channel AFTER the verdict commits. Bounded to 2s and never throws, so it
-    // can't alter or fail the response — the verdict above is already final.
-    await notifyRoutingChannel(output);
+    // Post-verdict side effect (SID-66): announce a team-routed escalate to its
+    // routing channel AFTER the verdict commits. Bounded to 2s and never throws,
+    // so it can't alter or fail the response — the verdict above is already final.
+    // SID-70: capture the message permalink and attach it to the routing action so
+    // the end-user "view in Slack" link can deep-link to the thread (rendered in
+    // Phase 3). add_to_group escalates don't post (approved in-app).
+    const permalink = await notifyRoutingChannel(output);
+    if (
+      permalink &&
+      output.verdict === "escalate" &&
+      output.approval_action?.type === "team_routing"
+    ) {
+      output.approval_action.slack_permalink = permalink;
+    }
     return NextResponse.json(output, { status: 200 });
   } catch (err) {
     const message =

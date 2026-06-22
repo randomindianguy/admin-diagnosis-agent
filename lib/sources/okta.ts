@@ -23,6 +23,9 @@ type UserRaw = {
 
 const DOMAIN = process.env.OKTA_DOMAIN;
 const TOKEN = process.env.OKTA_API_TOKEN;
+// The login domain the seeder (scripts/seed-okta.mts) uses for all demo personas.
+// Scoping the user fetch to it keeps the org's own admin account out of the picture.
+const SEED_EMAIL_DOMAIN = "cleared-demo.example";
 
 async function okta<T>(path: string): Promise<T> {
   const res = await fetch(`https://${DOMAIN}/api/v1${path}`, {
@@ -60,9 +63,18 @@ async function build(): Promise<OktaPicture> {
     };
   });
 
-  // Members per group → re-keyed memberships per user.
+  // All demo users FIRST (SID-70), so zero-group identities like Demo User still
+  // appear in the picture — the persona attribution needs them. Scoped to the
+  // seed email domain so the org's own admin account doesn't leak in. Memberships
+  // are layered on top from the group iteration.
   const userMemberships = new Map<string, Set<string>>(); // userOktaId → group:<name>
   const userMeta = new Map<string, UserRaw>();
+  const allUsers = await okta<UserRaw[]>("/users?limit=200");
+  for (const u of allUsers) {
+    if (!u.profile?.login?.endsWith(`@${SEED_EMAIL_DOMAIN}`)) continue;
+    userMemberships.set(u.id, new Set());
+    userMeta.set(u.id, u);
+  }
   for (const g of managed) {
     const members = await okta<UserRaw[]>(`/groups/${g.id}/users?limit=200`);
     for (const u of members) {
@@ -84,4 +96,53 @@ async function build(): Promise<OktaPicture> {
   );
 
   return { users, groups };
+}
+
+// SID-70: the closed-loop write. Resolves re-keyed ids ("user:<login-local>",
+// "group:<name>") to real Okta ids, then adds the user to the group. Returns a
+// result object (never throws) so the approve route can surface failures cleanly.
+// Invalidates the memoized picture on success so a re-submit reflects the grant.
+export async function addUserToGroup(
+  userKeyId: string,
+  groupKeyId: string,
+): Promise<{ ok: boolean; error?: string }> {
+  if (!DOMAIN || !TOKEN) return { ok: false, error: "Okta is not configured." };
+  const headers = { Authorization: `SSWS ${TOKEN}`, Accept: "application/json" };
+  try {
+    const login = `${userKeyId.replace(/^user:/, "")}@${SEED_EMAIL_DOMAIN}`;
+    const groupName = groupKeyId.replace(/^group:/, "");
+
+    const userRes = await fetch(
+      `https://${DOMAIN}/api/v1/users/${encodeURIComponent(login)}`,
+      { headers },
+    );
+    if (!userRes.ok) {
+      return { ok: false, error: `User lookup failed (HTTP ${userRes.status}).` };
+    }
+    const user = (await userRes.json()) as { id: string };
+
+    const groupsRes = await fetch(
+      `https://${DOMAIN}/api/v1/groups?q=${encodeURIComponent(groupName)}`,
+      { headers },
+    );
+    if (!groupsRes.ok) {
+      return { ok: false, error: `Group lookup failed (HTTP ${groupsRes.status}).` };
+    }
+    const groups = (await groupsRes.json()) as GroupRaw[];
+    const group = groups.find((g) => g.profile?.name === groupName);
+    if (!group) return { ok: false, error: `Group "${groupName}" not found in Okta.` };
+
+    const putRes = await fetch(
+      `https://${DOMAIN}/api/v1/groups/${group.id}/users/${user.id}`,
+      { method: "PUT", headers },
+    );
+    if (!putRes.ok) {
+      return { ok: false, error: `Okta group add failed (HTTP ${putRes.status}).` };
+    }
+
+    cache = null; // re-submit should see the new membership
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Okta write error." };
+  }
 }

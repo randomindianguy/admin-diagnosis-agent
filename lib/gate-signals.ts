@@ -14,6 +14,7 @@
 // gate_signals) to assemble the full DiagnosisOutput (Q11 judgment/fact split).
 
 import type {
+  ApprovalAction,
   ConsistencyVotes,
   DiagnosisOutput,
   GateSignal,
@@ -116,6 +117,45 @@ function stripScores(runbook: RetrievalResult["runbook"]): RetrievedEvidence[] {
   return runbook.map(({ source, snippet }) => ({ source, snippet }));
 }
 
+// SID-70: derive the admin action for an escalate, deterministically from the
+// committed status_facts (NOT the model). If the requester is missing a group the
+// resource grants to, the closed loop can provision it (add_to_group); otherwise
+// it needs human judgement and routes to a team (team_routing). Re-keyed
+// "user:"/"group:" ids are resolved to real Okta ids later, at approval time.
+function deriveApprovalAction(
+  status: StatusFacts,
+  owner: string,
+): ApprovalAction {
+  // add_to_group is the PROVISIONING action, which this system routes to the
+  // identity team. Gating on owner keeps inquiry/recommendation/security/support
+  // escalates (which may incidentally show a group-gap in status_facts) from being
+  // mis-derived as approvable — those need human judgement → team_routing.
+  if (owner === "identity-team") {
+    const user = status.users[0];
+    if (user) {
+      const nameOf = new Map(status.groups.map((g) => [g.id, g.name]));
+      for (const r of status.resources) {
+        for (const grant of r.grants) {
+          if (
+            grant.principal.startsWith("group:") &&
+            !user.direct_group_memberships.includes(grant.principal)
+          ) {
+            return {
+              type: "add_to_group",
+              user_id: user.id,
+              group_id: grant.principal,
+              group_name:
+                nameOf.get(grant.principal) ??
+                grant.principal.replace(/^group:/, ""),
+            };
+          }
+        }
+      }
+    }
+  }
+  return { type: "team_routing", team: owner, slack_channel: owner };
+}
+
 // Combine the primary judgment with both signals to produce the final output.
 export function applyGate(params: {
   // Refuse skips the gate (short-circuited upstream in runGatedDiagnosis), so
@@ -163,6 +203,7 @@ export function applyGate(params: {
       owner: primary.owner,
       diagnosis_text: primary.diagnosis_text,
       ...facts,
+      approval_action: deriveApprovalAction(status_facts, primary.owner),
     };
   }
 
@@ -175,6 +216,7 @@ export function applyGate(params: {
       owner: primary.owner,
       diagnosis_text: primary.diagnosis_text,
       ...facts,
+      approval_action: deriveApprovalAction(status_facts, primary.owner),
     };
   }
   // Override a model-resolve into escalate: fallback owner + augmented text.
@@ -183,6 +225,7 @@ export function applyGate(params: {
     owner: FALLBACK_ESCALATION_OWNER,
     diagnosis_text: `${overrideNote(sufficiency, consistency)}\n\n${primary.diagnosis_text}`,
     ...facts,
+    approval_action: deriveApprovalAction(status_facts, FALLBACK_ESCALATION_OWNER),
   };
 }
 

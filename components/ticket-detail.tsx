@@ -9,6 +9,7 @@ import { UserBubble } from "./user-bubble";
 import { ReasoningTrace } from "./reasoning-trace";
 import { DiagnosisOutput as DiagnosisOutputCard } from "./diagnosis-output";
 import { RefusalOutput } from "./refusal-output";
+import { ApprovalControls } from "./approval-controls";
 import { ErrorState } from "./error-state";
 import { timeAgo } from "@/lib/relative-time";
 import { lastAgentOutput } from "@/lib/submission";
@@ -147,6 +148,15 @@ export function TicketDetail({
               ) : (
                 <DiagnosisOutputCard output={output} />
               )}
+              {/* SID-70: closed-loop approval — only for add_to_group escalates.
+                  team_routing escalates have no buttons (out-of-band action). */}
+              {output.verdict === "escalate" &&
+                output.approval_action?.type === "add_to_group" && (
+                  <ApprovalControls
+                    submission={submission}
+                    action={output.approval_action}
+                  />
+                )}
             </div>
           )}
         </>

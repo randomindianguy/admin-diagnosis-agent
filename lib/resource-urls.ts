@@ -7,11 +7,11 @@
 // "you now have access to <resource>" without a link.
 export const RESOURCE_URLS: Record<string, string> = {
   "data warehouse dashboards":
-    "https://www.notion.so/Data-warehouse-dashboards-3858dc25553e8084890ed3aac0b14c80",
+    "https://app.notion.com/p/randomindianguy/data-warehouse-dashboards-3868dc25553e803c88f0f8827bebfc7d",
   "analytics dashboard":
-    "https://www.notion.so/Analytics-dashboard-3858dc25553e80f4afe2c4f014a59ac9",
+    "https://app.notion.com/p/randomindianguy/analytics-dashboard-3868dc25553e803983fedccf4ef88feb",
   "Q3 strategy plan":
-    "https://www.notion.so/Q3-strategy-plan-3858dc25553e80ce81bbeb14b16e9d2b",
+    "https://app.notion.com/p/randomindianguy/Q3-strategy-plan-3868dc25553e803b92ccd4d113d99fa7",
   "Q3 Revenue Models":
-    "https://www.notion.so/Q3-Revenue-Models-3858dc25553e8076a6acdb4ee59712c6",
+    "https://app.notion.com/p/randomindianguy/Q3-Revenue-Models-3868dc25553e8049ab15fd0646b23ebf",
 };

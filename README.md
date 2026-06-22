@@ -8,7 +8,7 @@ Live: **[admin-diagnosis-agent.vercel.app](https://admin-diagnosis-agent.vercel.
 
 ## What it does
 
-When someone at work can't open a file, folder, or dashboard, they file a ticket. Most go to an admin's queue. The admin spends real time figuring out what's wrong — group memberships, owner routing, resources they don't even control — often for tickets the access graph could have answered.
+Workspace admins drown in access tickets that don't need them. Most are answerable from workspace state — group memberships, owner routing, resources the admin doesn't even control. The ones that genuinely need admin work get buried in the noise.
 
 Cleared does that triage. It investigates the request and commits to one of three outcomes:
 

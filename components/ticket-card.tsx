@@ -50,7 +50,7 @@ export function TicketCard({
       </div>
       <p className="line-clamp-2 text-text-secondary">{request}</p>
       {output ? (
-        <VerdictPill output={output} />
+        <VerdictPill output={output} status={submission.status} />
       ) : (
         <span className="text-sm text-text-muted">Diagnosing…</span>
       )}

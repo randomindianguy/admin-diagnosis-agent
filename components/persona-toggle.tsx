@@ -15,10 +15,12 @@ export function PersonaToggle({
   value,
   onChange,
   unseenCount = 0,
+  endUserUnseenCount = 0,
 }: {
   value: PersonaView;
   onChange: (next: PersonaView) => void;
   unseenCount?: number; // SID-63: new tickets the admin hasn't seen
+  endUserUnseenCount?: number; // SID-75: decisions the end user hasn't seen
 }) {
   return (
     <div
@@ -28,10 +30,12 @@ export function PersonaToggle({
     >
       {OPTIONS.map((o) => {
         const active = o.value === value;
-        // Change indicator on the Admin tab (SID-63 Q6): neutral dot, or a count
+        // Change indicator (SID-63 Q6; SID-75 symmetric): neutral dot, or a count
         // badge if >1 unseen. Neutral (text-primary), not brand — keeps verdict
-        // color semantics intact.
-        const showIndicator = o.value === "admin" && unseenCount > 0;
+        // color semantics intact. Admin tab → new tickets; End user tab → unseen
+        // approve/deny decisions.
+        const count = o.value === "admin" ? unseenCount : endUserUnseenCount;
+        const showIndicator = count > 0;
         return (
           <button
             key={o.value}
@@ -48,9 +52,9 @@ export function PersonaToggle({
           >
             {o.label}
             {showIndicator &&
-              (unseenCount > 1 ? (
+              (count > 1 ? (
                 <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-pill bg-text-primary px-[3px] text-[10px] font-bold tabular-nums text-background-primary">
-                  {unseenCount}
+                  {count}
                 </span>
               ) : (
                 <span
@@ -59,7 +63,7 @@ export function PersonaToggle({
                 />
               ))}
             {showIndicator && (
-              <span className="sr-only">({unseenCount} new)</span>
+              <span className="sr-only">({count} new)</span>
             )}
           </button>
         );

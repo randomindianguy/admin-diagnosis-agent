@@ -41,6 +41,10 @@ export type Submission = {
   seen: boolean;
   status?: SubmissionStatus; // SID-70
   decidedAt?: number; // when approved/denied — for the "· just now" stamp
+  // SID-75: the admin's approve/deny is unseen by the END USER until they switch to
+  // their own view (symmetric to `seen`, which tracks the admin's side). Set false
+  // on the decision; cleared by markDecisionsSeen() → lights the End User tab.
+  decisionSeen?: boolean;
   // SID-69: hand-authored continuation of a "needs detail" refuse (the user
   // clarifies, the agent resolves). END-USER-FACING SEED DATA ONLY — the admin
   // view reads `turns` and never this field, so it stays byte-identical. Carries
@@ -66,6 +70,7 @@ type SubmissionsState = {
   seed: () => void; // pre-load the demo tickets once (SID-63)
   selectTicket: (id: string) => void; // admin picks a feed ticket
   markAllSeen: () => void; // clears the unseen indicator (on toggle → Admin)
+  markDecisionsSeen: () => void; // SID-75: clears the end-user decision indicator (toggle → End user)
   approveSubmission: (id: string) => void; // SID-70: admin approved (after Okta write)
   denySubmission: (id: string) => void; // SID-70: admin denied (no Okta write)
 };
@@ -170,14 +175,27 @@ export const useSubmissions = create<SubmissionsState>((set) => ({
   approveSubmission: (id) =>
     set((s) => ({
       submissions: s.submissions.map((sub) =>
-        sub.id === id ? { ...sub, status: "approved", decidedAt: Date.now() } : sub,
+        sub.id === id
+          ? { ...sub, status: "approved", decidedAt: Date.now(), decisionSeen: false }
+          : sub,
       ),
     })),
 
   denySubmission: (id) =>
     set((s) => ({
       submissions: s.submissions.map((sub) =>
-        sub.id === id ? { ...sub, status: "denied", decidedAt: Date.now() } : sub,
+        sub.id === id
+          ? { ...sub, status: "denied", decidedAt: Date.now(), decisionSeen: false }
+          : sub,
+      ),
+    })),
+
+  // SID-75: end-user has now seen the decision(s) — clears the End User tab
+  // indicator. Symmetric to markAllSeen (admin side).
+  markDecisionsSeen: () =>
+    set((s) => ({
+      submissions: s.submissions.map((sub) =>
+        sub.decisionSeen === false ? { ...sub, decisionSeen: true } : sub,
       ),
     })),
 }));

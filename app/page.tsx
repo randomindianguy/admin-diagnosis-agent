@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DiagnosisInput } from "@/components/diagnosis-input";
 import { EndUserCard } from "@/components/end-user-card";
+import { ApprovalResultCard } from "@/components/approval-result-card";
+import { ThreadDivider } from "@/components/thread-divider";
 import { UserBubble } from "@/components/user-bubble";
 import { ErrorState } from "@/components/error-state";
 import { TicketFeed } from "@/components/ticket-feed";
@@ -15,7 +17,14 @@ import { runWalkthrough, WALKTHROUGH_KEY } from "@/lib/walkthrough";
 import "driver.js/dist/driver.css";
 import { useDiagnose } from "@/hooks/use-diagnose";
 import { useTraceReveal } from "@/hooks/use-trace-reveal";
-import { useSubmissions, makeId, type Turn, type Requester } from "@/lib/store";
+import {
+  useSubmissions,
+  makeId,
+  type Turn,
+  type Requester,
+  type Submission,
+} from "@/lib/store";
+import { lastAgentOutput } from "@/lib/submission";
 import { PERSONAS, DEMO_USER } from "@/lib/seed-submissions";
 
 const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
@@ -127,6 +136,7 @@ export default function Home() {
   const seed = useSubmissions((s) => s.seed);
   const selectTicket = useSubmissions((s) => s.selectTicket);
   const markAllSeen = useSubmissions((s) => s.markAllSeen);
+  const markDecisionsSeen = useSubmissions((s) => s.markDecisionsSeen);
 
   const active = submissions.find((s) => s.id === activeId) ?? null;
   const turns = active?.turns ?? [];
@@ -145,6 +155,27 @@ export default function Home() {
       ? Math.round((pastSub.follow_up_turns[0].at - pastSub.createdAt) / 60_000)
       : null;
 
+  // SID-75: the approval payoff as a SEPARATE card below the escalate "Submitted"
+  // card (which no longer mutates). Renders for a terminal add_to_group escalate,
+  // under a ThreadDivider labelled by the submit→decision gap ("just now" live).
+  const approvalResultBlock = (sub: Submission | null) => {
+    if (!sub || (sub.status !== "approved" && sub.status !== "denied")) return null;
+    const out = lastAgentOutput(sub);
+    if (out?.verdict !== "escalate" || out.approval_action?.type !== "add_to_group") {
+      return null;
+    }
+    const gapMin = sub.decidedAt
+      ? Math.round((sub.decidedAt - sub.createdAt) / 60_000)
+      : 0;
+    const label = gapMin < 1 ? "just now" : `${gapMin} min later`;
+    return (
+      <>
+        <ThreadDivider label={label} />
+        <ApprovalResultCard output={out} status={sub.status} />
+      </>
+    );
+  };
+
   // `now` anchors the "X ago" timestamps. Computed once via a lazy initializer
   // (not setState-in-effect); only ever read once the admin feed renders, which
   // is client-only (personaView defaults to end-user), so no SSR time mismatch.
@@ -155,16 +186,22 @@ export default function Home() {
   }, [seed]);
 
   const unseenCount = submissions.filter((s) => !s.seen).length;
+  // SID-75: terminal decisions the end user hasn't seen yet → End User tab indicator.
+  const endUserUnseenCount = submissions.filter(
+    (s) => (s.status === "approved" || s.status === "denied") && s.decisionSeen === false,
+  ).length;
   const selectedSub = submissions.find((s) => s.id === selectedId) ?? null;
   // The selected ticket is "live" only while it's the active conversation still
   // being diagnosed — then the trace animates (SID-59) and the package gates.
   const selectedIsLive =
     !!selectedSub && selectedSub.id === activeId && pendingAgentId !== null;
 
-  // Switching to Admin clears the unseen indicator.
+  // Switching to a view clears that view's indicator: Admin → new tickets seen,
+  // End user → decisions seen (SID-75).
   const handlePersonaChange = (next: PersonaView) => {
     setPersonaView(next);
     if (next === "admin") markAllSeen();
+    else markDecisionsSeen();
   };
 
   // Auto-scroll the transcript to the newest turn as the conversation grows.
@@ -327,6 +364,7 @@ export default function Home() {
             value={personaView}
             onChange={handlePersonaChange}
             unseenCount={unseenCount}
+            endUserUnseenCount={endUserUnseenCount}
           />
           {/* SID-71: replay the orientation tour. Quiet — same weight as the
               GitHub icon. Clears the dismiss key so the tour runs again. */}
@@ -451,6 +489,8 @@ export default function Home() {
                           onRetry={() => runDiagnose(submitted, pendingAgentId)}
                         />
                       )}
+                      {/* SID-75: approval payoff lands as a new card below. */}
+                      {approvalResultBlock(active)}
                       <div ref={bottomRef} />
                     </div>
                   </div>
@@ -483,26 +523,23 @@ export default function Home() {
                     {pastSub.follow_up_turns &&
                       pastSub.follow_up_turns.length > 0 && (
                         <>
-                          <div className="my-xs flex items-center gap-sm" aria-hidden>
-                            <span className="h-px flex-1 bg-border" />
-                            <span className="font-mono text-[11px] text-text-muted">
-                              {pastGapMin} min later
-                            </span>
-                            <span className="h-px flex-1 bg-border" />
-                          </div>
+                          <ThreadDivider label={`${pastGapMin} min later`} />
                           {pastSub.follow_up_turns.map((t) =>
                             t.role === "user" ? (
                               <UserBubble key={t.id} text={t.text} />
                             ) : (
                               <EndUserCard
-                          key={t.id}
-                          output={t.output}
-                          status={pastSub.status}
-                        />
+                                key={t.id}
+                                output={t.output}
+                                status={pastSub.status}
+                              />
                             ),
                           )}
                         </>
                       )}
+                    {/* SID-75: a past escalate that was approved/denied shows its
+                        result card here, same as the live thread. */}
+                    {approvalResultBlock(pastSub)}
                   </div>
                 </div>
               ) : (

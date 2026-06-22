@@ -1,4 +1,5 @@
 import type { DiagnosisOutput } from "@/lib/schema";
+import type { SubmissionStatus } from "@/lib/store";
 
 // Verdict treatment (SID-67). Two registers for one meaning:
 //   VerdictText — the PRIMARY moment. Verdict as content, not a label: display
@@ -7,7 +8,7 @@ import type { DiagnosisOutput } from "@/lib/schema";
 //     solid, 4px corners) kept for at-a-glance scanning in the admin feed and the
 //     ticket-detail header. Both read from the same verdictVisual() source.
 
-type Tone = "resolve" | "escalate" | "refuse";
+type Tone = "resolve" | "escalate" | "refuse" | "denied";
 
 const TONE: Record<Tone, { text: string; pill: string }> = {
   resolve: {
@@ -21,6 +22,12 @@ const TONE: Record<Tone, { text: string; pill: string }> = {
   refuse: {
     text: "text-verdict-refuse",
     pill: "border-verdict-refuse/50 bg-verdict-refuse/10 text-verdict-refuse",
+  },
+  // SID-75: a denied escalate is an admin DECISION, not a refusal-of-scope — muted
+  // neutral, not red, so it doesn't over-signal next to the verdict colors.
+  denied: {
+    text: "text-text-muted",
+    pill: "border-border bg-background-secondary text-text-muted",
   },
 };
 
@@ -39,11 +46,22 @@ function humanize(label: string): string {
 
 // word = the verdict; detail = the qualifier (root cause / owner / scope). The
 // word carries the color; the detail recedes to muted so it reads as a caption.
-function verdictVisual(output: DiagnosisOutput): {
+//
+// SID-75: `status` is a DISPLAY-ONLY override for the scan pill. Once an escalate
+// reaches a terminal admin decision, the pill re-labels — approved → "Resolved",
+// denied → "Denied" — so the feed rail and detail header reflect the current state.
+// The agent's committed verdict (VerdictText, the reasoning trace) is untouched;
+// pending states keep "Escalated" since the verdict IS still the active state.
+function verdictVisual(
+  output: DiagnosisOutput,
+  status?: SubmissionStatus,
+): {
   tone: Tone;
   word: string;
   detail?: string;
 } {
+  if (status === "approved") return { tone: "resolve", word: "Resolved" };
+  if (status === "denied") return { tone: "denied", word: "Denied" };
   if (output.verdict === "resolve")
     return { tone: "resolve", word: "Resolved", detail: humanize(output.root_cause) };
   if (output.verdict === "escalate")
@@ -79,9 +97,16 @@ export function VerdictText({
   );
 }
 
-// SCAN badge — thin warm pill for the feed + detail header.
-export function VerdictPill({ output }: { output: DiagnosisOutput }) {
-  const v = verdictVisual(output);
+// SCAN badge — thin warm pill for the feed + detail header. SID-75: takes an
+// optional submission `status` so a terminal escalate scans as Resolved/Denied.
+export function VerdictPill({
+  output,
+  status,
+}: {
+  output: DiagnosisOutput;
+  status?: SubmissionStatus;
+}) {
+  const v = verdictVisual(output, status);
   return (
     <span
       className={`inline-flex w-fit items-center rounded-sm border px-sm py-[2px] text-sm ${TONE[v.tone].pill}`}

@@ -4,7 +4,6 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Check, AlertTriangle, Info, Loader2 } from "lucide-react";
 import type { DiagnosisOutput } from "@/lib/schema";
 import type { SubmissionStatus } from "@/lib/store";
-import { RESOURCE_URLS } from "@/lib/resource-urls";
 import { OutcomeCard } from "./outcome-card";
 import { usePrefersReducedMotion } from "@/hooks/use-trace-reveal";
 
@@ -228,9 +227,11 @@ function loadingContent(phase: LoadingPhase): CardContent {
 }
 
 // SID-70: the closed-loop follow-up line for an escalate, rendered IN PLACE of the
-// default next-step once the submission has a downstream status. Quiet (next-step
-// weight); links open in a new tab. Returns null for pending_approval / non-
-// escalate → the default next-step shows. (Timeline is untouched — option a.)
+// default next-step. Quiet (next-step weight); links open in a new tab. SID-75:
+// keyed on the action TYPE, not status — team_routing shows its destination; an
+// add_to_group card stays the frozen submit-moment (next-step + persistent Slack
+// routing record) for every status, and the terminal approved/denied outcome moves
+// to ApprovalResultCard. Returns null for non-escalate → the default next-step shows.
 function approvalLine(
   output: DiagnosisOutput,
   status: SubmissionStatus | undefined,
@@ -239,55 +240,12 @@ function approvalLine(
   if (output.verdict !== "escalate" || !status) return null;
   const linkCls = "text-accent underline-offset-2 hover:underline";
 
-  if (status === "approved") {
-    const aa = output.approval_action;
-    const resourceName =
-      aa?.type === "add_to_group"
-        ? output.status_facts.resources.find((r) =>
-            r.grants.some((g) => g.principal === aa.group_id),
-          )?.name
-        : undefined;
-    const url = resourceName ? RESOURCE_URLS[resourceName] : "";
-    // SID-73: the Slack routing record sits BELOW the access line — Notion (the
-    // outcome) stays primary, Slack (the provenance) is the quiet second line.
-    const slack = aa?.type === "add_to_group" ? aa.slack_permalink : undefined;
-    return (
-      <div className="flex flex-col gap-xs motion-safe:animate-[fadeIn_250ms_ease-out]">
-        <p className="text-sm text-text-muted">
-          ✓ Approved by your admin.{" "}
-          {resourceName
-            ? `You now have access to ${resourceName}. `
-            : "Access granted. "}
-          {url && (
-            <a href={url} target="_blank" rel="noopener noreferrer" className={linkCls}>
-              Open in Notion →
-            </a>
-          )}
-        </p>
-        {slack && (
-          <p className="text-sm text-text-muted">
-            Routing record ·{" "}
-            <a href={slack} target="_blank" rel="noopener noreferrer" className={linkCls}>
-              View in Slack →
-            </a>
-          </p>
-        )}
-      </div>
-    );
-  }
+  const aa = output.approval_action;
 
-  if (status === "denied") {
-    return (
-      <p className="text-sm text-text-muted">Your request was denied.</p>
-    );
-  }
-
-  if (status === "pending_team") {
-    const aa = output.approval_action;
-    const team = ownerLabel(
-      aa?.type === "team_routing" ? aa.team : output.owner,
-    );
-    const link = aa?.type === "team_routing" ? aa.slack_permalink : undefined;
+  // team_routing — out-of-band; the destination + its Slack conversation link.
+  if (aa?.type === "team_routing") {
+    const team = ownerLabel(aa.team);
+    const link = aa.slack_permalink;
     return (
       <p className="text-sm text-text-muted">
         Routed to {team}.{" "}
@@ -299,13 +257,13 @@ function approvalLine(
       </p>
     );
   }
-  if (status === "pending_approval") {
-    // SID-73: the routing record posts the moment the escalate commits, so it's
-    // here BEFORE the admin acts. Only link in this state (no Notion access yet) —
-    // one quiet line below the default next-step. No record yet → next-step alone.
-    const aa = output.approval_action;
-    const slack = aa?.type === "add_to_group" ? aa.slack_permalink : undefined;
-    if (!slack) return null;
+
+  // add_to_group — SID-75: this card is now the FROZEN submit-moment. It keeps the
+  // next-step + the persistent Slack routing record for EVERY status; the terminal
+  // outcome (approved/denied) renders as a separate ApprovalResultCard below, so it
+  // is NOT shown inline here. (Pre-SID-75 the card mutated in place on approval.)
+  if (aa?.type === "add_to_group") {
+    const slack = aa.slack_permalink;
     return (
       <div className="flex flex-col gap-xs">
         {nextStep && (
@@ -313,12 +271,14 @@ function approvalLine(
             {nextStep}
           </p>
         )}
-        <p className="text-sm text-text-muted">
-          Routing record ·{" "}
-          <a href={slack} target="_blank" rel="noopener noreferrer" className={linkCls}>
-            View in Slack →
-          </a>
-        </p>
+        {slack && (
+          <p className="text-sm text-text-muted">
+            Routing record ·{" "}
+            <a href={slack} target="_blank" rel="noopener noreferrer" className={linkCls}>
+              View in Slack →
+            </a>
+          </p>
+        )}
       </div>
     );
   }

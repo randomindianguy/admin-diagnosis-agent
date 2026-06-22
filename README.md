@@ -13,28 +13,28 @@ When someone at work can't open a file, folder, or dashboard, they file a ticket
 Cleared does that triage. It investigates the request and commits to one of three outcomes:
 
 - **Resolve** — the answer is clear. Return it with reasoning.
-- **Escalate** — admin work is genuinely needed. Send a complete investigation, not a raw ticket.
+- **Escalate** — admin work is genuinely needed. Send a complete investigation. For escalations that come down to a missing group membership, the admin can approve in-app and Cleared writes the grant to Okta directly.
 - **Refuse** — the request is vague or out of scope. Ask one specific question. Don't guess.
 
 The third one is the differentiator. Most agents in this space try to be confident. This one tries to not be wrong.
 
 ## Try the demo
 
-Open **[admin-diagnosis-agent.vercel.app](https://admin-diagnosis-agent.vercel.app)** and try these in order:
+Open **[admin-diagnosis-agent.vercel.app](https://admin-diagnosis-agent.vercel.app)**. You'll land in the end-user view as one of several test personas — use the switcher in the top left to change identity. Try these in order:
 
 **A clean resolve.** *"I need the analytics dashboard."* Cleared checks access, finds you're already in the right team, and tells you to open it directly.
 
 **A refusal that becomes a resolve.** *"I can't open the dashboard."* Cleared doesn't know which one. Instead of guessing, it asks: *"Analytics or data warehouse?"* Reply with *"the analytics dashboard"* and the loop closes into a resolve.
 
-**An escalation.** *"I joined the analytics team last week and need access to the data warehouse dashboards."* Cleared recognizes onboarding routing and sends a complete package to the identity team — who, what, why, and the recommended fix. The admin gets a triaged investigation, not a raw ticket.
+**An escalation that closes the loop.** Switch to the **Demo User** persona and ask for the data warehouse dashboards. Cleared recognizes Demo User isn't in the right group and escalates with a complete investigation. Toggle to **Admin** and click **Approve** — Cleared writes the grant to Okta directly. Toggle back to end-user. The request now shows as approved with a working link to the resource. Click it.
 
 The workspace is real but seeded with a fixed set of users, groups, and resources. The scenarios above exercise the verdict shapes against that data; questions about resources outside the seed may not have data to ground.
 
-Toggle to **Admin** to see what an admin actually receives.
+Toggle to **Admin** to see what an admin actually receives — the agent's reasoning trace, the evidence it grounded in, and the approval controls for escalations.
 
 ## How it works
 
-Cleared integrates with three real workspaces. Okta backs identity and group memberships. Notion backs runbook content that the agent retrieves over and reasons about. Slack backs team channel activity that appears in the admin view but never reaches the model's reasoning. After the agent commits an escalate verdict, the routing channel receives a structured notification with the requester and the investigation — the verdict announcing itself to the team it routed to. This split between evidence and context is enforced architecturally, not at the prompt layer.
+Cleared integrates with three real workspaces. Okta backs identity and group memberships — including writing new group grants when an admin approves an escalation in-app. Notion backs runbook content the agent retrieves over and reasons about. Slack backs team channel activity that appears in the admin view but never reaches the model's reasoning; team-routed escalations post a structured notification to the responsible channel. The split between evidence (used for verdict commitment) and context (surfaced to admins separately) is enforced architecturally, not at the prompt layer.
 
 The agent runs a fixed pipeline against retrieval, identity graph, and permission state:
 
@@ -49,6 +49,8 @@ The pipeline is fixed. The model picks the verdict; the gates decide what eviden
 
 Refusal is a real verdict, not a fallback. When the agent can't ground an answer, it asks one specific question instead of enumerating options.
 
+When an escalation comes down to a missing group membership, the admin can approve in-app — Cleared writes the grant to Okta directly, and the end-user side immediately reflects the new access with a link to the resource. Escalations that need a team's judgment go to Slack instead, with a permalink shown to the requester. Action lives where the actor lives.
+
 ## Evaluation
 
 Two tiers, scored independently:
@@ -58,11 +60,19 @@ Two tiers, scored independently:
 
 Methodology: seed-and-mutate. Golden cases authored manually, then mutated along seven failure axes. Graders validated against deliberately bad outputs before being trusted to discriminate good ones.
 
-Pipeline in `eval/`. Run with `npm run eval`.
+Pipeline in `eval/`. Run with `npm run validate`.
 
 ## Stack
 
 Next.js 16 · TypeScript · Tailwind · Anthropic SDK (claude-sonnet-4-6, tool-use, self-consistency) · Voyage embeddings · Okta + Notion + Slack APIs · Zustand · Vercel.
+
+## Reset between demos
+
+After running the closed-loop demo, Demo User has been added to a real Okta group. Restore to empty state:
+
+```
+node --env-file=.env.local scripts/reset-demo-user.mts
+```
 
 ## Credits
 

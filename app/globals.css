@@ -75,3 +75,93 @@
     opacity: 0;
   }
 }
+
+/* ── SID-71 walkthrough (Driver.js overrides) ───────────────────────────────
+   Scoped to .cleared-tour (the popoverClass) so two-class specificity beats
+   Driver's defaults. Matches the SID-67 register exactly: warm surface, hairline
+   border, no shadow; mono eyebrow + Newsreader title + Inter body; amber outline
+   primary, muted text secondary/skip. */
+.cleared-tour.driver-popover {
+  background-color: #1a1815;
+  border: 1px solid #2d2925;
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 20px;
+  max-width: 360px;
+  color: #f2ede3;
+}
+.cleared-tour .driver-popover-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  font: inherit;
+}
+.cleared-tour .tour-eyebrow {
+  display: block;
+  margin-bottom: 6px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #948a7c;
+}
+.cleared-tour .tour-title {
+  display: block;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #f2ede3;
+}
+.cleared-tour .driver-popover-description {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: #f2ede3;
+  margin: 0 0 16px;
+}
+.cleared-tour .driver-popover-footer {
+  margin-top: 0;
+  gap: 8px;
+}
+.cleared-tour .driver-popover-footer button {
+  text-shadow: none;
+  border-radius: 6px;
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-size: 14px;
+  transition: color 150ms ease, border-color 150ms ease;
+}
+/* Primary (Get started / Next / Done): amber text + 1px amber border, no fill. */
+.cleared-tour .driver-popover-next-btn {
+  background: transparent;
+  color: #c68e3d;
+  border: 1px solid #c68e3d;
+  font-weight: 500;
+  padding: 6px 16px;
+}
+.cleared-tour .driver-popover-next-btn:hover {
+  background: rgba(198, 142, 61, 0.1);
+  color: #c68e3d;
+}
+/* Secondary / skip (Back / Skip): muted text link, no border. */
+.cleared-tour .driver-popover-prev-btn {
+  background: transparent;
+  color: #948a7c;
+  border: none;
+  font-weight: 400;
+  padding: 6px 8px;
+}
+.cleared-tour .driver-popover-prev-btn:hover {
+  color: #a89f8e;
+  text-decoration: underline;
+}
+/* Highlight cutout: a 1px amber outline around the targeted element. */
+.driver-active-element {
+  outline: 1px solid #c68e3d !important;
+  outline-offset: 2px;
+  border-radius: 4px;
+}

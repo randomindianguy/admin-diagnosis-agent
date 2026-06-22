@@ -38,6 +38,7 @@ export function PersonaToggle({
             type="button"
             role="tab"
             aria-selected={active}
+            data-tour={o.value === "admin" ? "admin-toggle" : undefined}
             onClick={() => onChange(o.value)}
             className={`inline-flex min-h-[44px] items-center gap-xs rounded-sm px-md py-xs text-body transition-colors ${
               active

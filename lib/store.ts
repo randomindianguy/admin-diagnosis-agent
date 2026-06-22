@@ -48,15 +48,6 @@ export type Submission = {
   follow_up_turns?: Turn[];
 };
 
-// The logged-in end user (matches scenario.json current_user = Alex). Stored on
-// every live submission now; SID-63 surfaces it as the requester in the feed.
-export const CURRENT_USER: Requester = {
-  name: "Alex Chen",
-  role: "Analyst",
-  team: "Analytics team",
-  userId: "user:alex.chen",
-};
-
 // Monotonic id generator — stable, SSR-safe (no crypto/Date in the hot path),
 // and shared so a turn's id can be minted in the page (for the in-flight card's
 // key) and handed back to addAgentTurn so the card morphs in place (SID-59).

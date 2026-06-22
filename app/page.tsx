@@ -10,10 +10,13 @@ import { TicketDetail, type LiveTrace } from "@/components/ticket-detail";
 import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
 import { PersonaSwitcher } from "@/components/persona-switcher";
 import { GitHubIcon } from "@/components/icons";
+import { HelpCircle } from "lucide-react";
+import { runWalkthrough, WALKTHROUGH_KEY } from "@/lib/walkthrough";
+import "driver.js/dist/driver.css";
 import { useDiagnose } from "@/hooks/use-diagnose";
 import { useTraceReveal } from "@/hooks/use-trace-reveal";
 import { useSubmissions, makeId, type Turn, type Requester } from "@/lib/store";
-import { PERSONAS } from "@/lib/seed-submissions";
+import { PERSONAS, DEMO_USER } from "@/lib/seed-submissions";
 
 const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
 
@@ -94,7 +97,9 @@ export default function Home() {
   const [personaView, setPersonaView] = useState<PersonaView>("end-user");
   // End-user portal (SID-68): which persona is "me", and which past ticket of
   // theirs is open (read-only). Local UI state — the store + admin stay untouched.
-  const [currentPersona, setCurrentPersona] = useState<Requester>(PERSONAS[0]);
+  // SID-71: Demo User is the default landing persona — a fresh, empty portal that
+  // sets up the headline closed-loop story for first-time reviewers.
+  const [currentPersona, setCurrentPersona] = useState<Requester>(DEMO_USER);
   const [pastSelectedId, setPastSelectedId] = useState<string | null>(null);
   // The id for the in-flight agent turn. Minted at submit and reused when the
   // turn is archived, so the loading card and the settled card share a key and
@@ -276,6 +281,38 @@ export default function Home() {
     setPastSelectedId(id);
   }
 
+  // SID-71: launch the orientation tour. Force the End-User compose state first so
+  // every step's target is in the DOM (edge case: tour fired from Admin or mid-
+  // conversation). Used by the first-visit auto-fire and the Help button.
+  function launchTour() {
+    setPersonaView("end-user");
+    handleReset(); // clear any active conversation / past ticket → empty compose
+    window.setTimeout(() => {
+      void runWalkthrough(() => {
+        try {
+          localStorage.setItem(WALKTHROUGH_KEY, "true");
+        } catch {
+          // private mode / storage disabled — tour just won't be remembered
+        }
+      });
+    }, 120); // let the reset re-render so [data-tour="compose"] exists
+  }
+
+  // First visit (no dismiss key): fire the tour once after the page settles.
+  useEffect(() => {
+    let dismissed = true;
+    try {
+      dismissed = !!localStorage.getItem(WALKTHROUGH_KEY);
+    } catch {
+      dismissed = true;
+    }
+    if (dismissed) return;
+    const t = window.setTimeout(() => launchTour(), 500);
+    return () => window.clearTimeout(t);
+    // Mount-only: launchTour's closure uses stable setters + store actions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <main className="flex h-screen w-full flex-col bg-background-primary text-text-primary">
       {/* Shared top bar — the persona toggle is the structural shell switch. */}
@@ -291,6 +328,23 @@ export default function Home() {
             onChange={handlePersonaChange}
             unseenCount={unseenCount}
           />
+          {/* SID-71: replay the orientation tour. Quiet — same weight as the
+              GitHub icon. Clears the dismiss key so the tour runs again. */}
+          <button
+            type="button"
+            onClick={() => {
+              try {
+                localStorage.removeItem(WALKTHROUGH_KEY);
+              } catch {
+                // ignore
+              }
+              launchTour();
+            }}
+            aria-label="Replay the walkthrough"
+            className="inline-flex h-[44px] w-[44px] items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <HelpCircle className="h-5 w-5" aria-hidden />
+          </button>
           <a
             href={REPO_URL}
             target="_blank"
@@ -453,7 +507,7 @@ export default function Home() {
                 </div>
               ) : (
                 // COMPOSE — empty state. "What's blocked?" + chips + input.
-                <>
+                <div data-tour="compose" className="flex min-h-0 flex-1 flex-col">
                   <div className="flex min-h-0 flex-1 flex-col justify-end overflow-auto px-md pt-lg">
                     <div className="flex flex-col gap-md pb-md">
                       <div className="flex flex-col gap-xs">
@@ -480,7 +534,7 @@ export default function Home() {
                       disabled={diagnose.isPending}
                     />
                   </div>
-                </>
+                </div>
               )}
             </div>
           </section>

@@ -49,7 +49,7 @@ export function PersonaSwitcher({
   }, [open]);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} data-tour="persona-switcher" className="relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}

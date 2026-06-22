@@ -56,12 +56,18 @@ export type ConsistencyVotes = { agree: number; total: number };
 //   team_routing  — requires human judgement beyond Cleared's reach. Stays in
 //     Slack mode; slack_permalink is captured post-verdict (lib/notify.ts) for the
 //     end-user "view in Slack" link (SID-66 → SID-70).
+//
+// SID-73: EVERY escalate now posts a Slack routing record (reverting the SID-70
+// add_to_group→no-post evolution). The action SURFACE stays distinct — add_to_group
+// is actioned in-app, team_routing out-of-band — but the routing RECORD is universal,
+// so both members carry slack_permalink for the end-user "view in Slack" link.
 export type ApprovalAction =
   | {
       type: "add_to_group";
       user_id: string; // re-keyed "user:<login-local>" — resolved to Okta id at approval time
       group_id: string; // re-keyed "group:<name>"
       group_name: string;
+      slack_permalink?: string; // SID-73: routing-record permalink, attached by the route post-verdict
     }
   | {
       type: "team_routing";

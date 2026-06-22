@@ -4,14 +4,16 @@
 // reading the Slack message can still ignore a wrong verdict, same as today.
 //
 // Hard guarantees (load-bearing):
-//   - Only TEAM-ROUTED escalates post (SID-70): add_to_group escalates are now
-//     handled in-app via the approval flow, so they no longer Slack-post — the
-//     action lives where the actor acts. Team-routed escalates stay in Slack mode.
+//   - EVERY escalate posts a routing record (SID-73, reverting SID-70's
+//     add_to_group→no-post evolution). A fresh visitor saw an inconsistency —
+//     team_routing showed a Slack link, add_to_group didn't, with no visible reason.
+//     The action SURFACE stays distinct (add_to_group is actioned in-app), but the
+//     routing RECORD is universal: both produce a Slack permalink for visibility.
 //   - Bounded to 2s and never throws → Slack latency/failure can't fail the
 //     diagnosis. The 200 response is byte-identical whether or not the post lands.
 //   - Missing/invalid token → no channel resolves → skip silently.
-//   - On success it returns the message permalink (SID-70) so the route can put it
-//     on approval_action.team_routing for the end-user "view in Slack" link.
+//   - On success it returns the message permalink so the route can put it on the
+//     approval_action (either member) for the end-user "view in Slack" link.
 //
 // Eval never reaches this: it calls diagnose()/retrieveContext directly, not the
 // route. So eval stays green by construction.
@@ -58,9 +60,9 @@ function buildMessage(
 export async function notifyRoutingChannel(
   output: DiagnosisOutput,
 ): Promise<string | undefined> {
-  // SID-70: only team-routed escalates post. add_to_group escalates are approved
-  // in-app, so they skip Slack entirely.
-  if (output.verdict !== "escalate" || output.approval_action?.type !== "team_routing") {
+  // SID-73: every escalate posts a routing record — both add_to_group (actioned
+  // in-app) and team_routing (out-of-band). Non-escalates never post.
+  if (output.verdict !== "escalate") {
     return undefined;
   }
   const channel = escalationChannelFor(output);

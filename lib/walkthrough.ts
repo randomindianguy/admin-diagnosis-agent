@@ -38,7 +38,7 @@ const STEPS: StepContent[] = [
   {
     eyebrow: "ADMIN · 3 OF 3",
     title: "See the reasoning.",
-    body: "Toggle to Admin to read the agent's full audit trail. For escalations that need a group membership, you can approve directly — Cleared writes the grant to real Okta.",
+    body: "Toggle to Admin to read the agent's full audit trail. For escalations that need a group membership, scroll to the bottom of the ticket and click Approve — Cleared writes the grant to real Okta.",
     element: '[data-tour="admin-toggle"]',
   },
 ];

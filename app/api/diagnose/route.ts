@@ -46,17 +46,17 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const context = await retrieveContext(symptom, personaUserId);
     const output = await runGatedDiagnosis(symptom, context);
-    // Post-verdict side effect (SID-66): announce a team-routed escalate to its
-    // routing channel AFTER the verdict commits. Bounded to 2s and never throws,
-    // so it can't alter or fail the response — the verdict above is already final.
-    // SID-70: capture the message permalink and attach it to the routing action so
-    // the end-user "view in Slack" link can deep-link to the thread (rendered in
-    // Phase 3). add_to_group escalates don't post (approved in-app).
+    // Post-verdict side effect (SID-66): announce an escalate to its routing channel
+    // AFTER the verdict commits. Bounded to 2s and never throws, so it can't alter or
+    // fail the response — the verdict above is already final. Capture the message
+    // permalink and attach it to the approval_action so the end-user "view in Slack"
+    // link can deep-link to the thread. SID-73: every escalate posts a routing record
+    // (both add_to_group and team_routing), so the permalink attaches to either member.
     const permalink = await notifyRoutingChannel(output);
     if (
       permalink &&
       output.verdict === "escalate" &&
-      output.approval_action?.type === "team_routing"
+      output.approval_action
     ) {
       output.approval_action.slack_permalink = permalink;
     }

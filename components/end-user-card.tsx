@@ -234,6 +234,7 @@ function loadingContent(phase: LoadingPhase): CardContent {
 function approvalLine(
   output: DiagnosisOutput,
   status: SubmissionStatus | undefined,
+  nextStep: string,
 ): ReactNode | null {
   if (output.verdict !== "escalate" || !status) return null;
   const linkCls = "text-accent underline-offset-2 hover:underline";
@@ -247,18 +248,31 @@ function approvalLine(
           )?.name
         : undefined;
     const url = resourceName ? RESOURCE_URLS[resourceName] : "";
+    // SID-73: the Slack routing record sits BELOW the access line — Notion (the
+    // outcome) stays primary, Slack (the provenance) is the quiet second line.
+    const slack = aa?.type === "add_to_group" ? aa.slack_permalink : undefined;
     return (
-      <p className="text-sm text-text-muted motion-safe:animate-[fadeIn_250ms_ease-out]">
-        ✓ Approved by you.{" "}
-        {resourceName
-          ? `You now have access to ${resourceName}. `
-          : "Access granted. "}
-        {url && (
-          <a href={url} target="_blank" rel="noopener noreferrer" className={linkCls}>
-            Open in Notion →
-          </a>
+      <div className="flex flex-col gap-xs motion-safe:animate-[fadeIn_250ms_ease-out]">
+        <p className="text-sm text-text-muted">
+          ✓ Approved by your admin.{" "}
+          {resourceName
+            ? `You now have access to ${resourceName}. `
+            : "Access granted. "}
+          {url && (
+            <a href={url} target="_blank" rel="noopener noreferrer" className={linkCls}>
+              Open in Notion →
+            </a>
+          )}
+        </p>
+        {slack && (
+          <p className="text-sm text-text-muted">
+            Routing record ·{" "}
+            <a href={slack} target="_blank" rel="noopener noreferrer" className={linkCls}>
+              View in Slack →
+            </a>
+          </p>
         )}
-      </p>
+      </div>
     );
   }
 
@@ -285,7 +299,30 @@ function approvalLine(
       </p>
     );
   }
-  return null; // pending_approval → default next-step
+  if (status === "pending_approval") {
+    // SID-73: the routing record posts the moment the escalate commits, so it's
+    // here BEFORE the admin acts. Only link in this state (no Notion access yet) —
+    // one quiet line below the default next-step. No record yet → next-step alone.
+    const aa = output.approval_action;
+    const slack = aa?.type === "add_to_group" ? aa.slack_permalink : undefined;
+    if (!slack) return null;
+    return (
+      <div className="flex flex-col gap-xs">
+        {nextStep && (
+          <p className="text-sm text-text-muted motion-safe:animate-[fadeIn_250ms_ease-out_350ms_both]">
+            {nextStep}
+          </p>
+        )}
+        <p className="text-sm text-text-muted">
+          Routing record ·{" "}
+          <a href={slack} target="_blank" rel="noopener noreferrer" className={linkCls}>
+            View in Slack →
+          </a>
+        </p>
+      </div>
+    );
+  }
+  return null;
 }
 
 export function EndUserCard({
@@ -345,7 +382,7 @@ export function EndUserCard({
               default next-step. Other states keep the default next-step. */}
           {settled &&
             output &&
-            (approvalLine(output, status) ??
+            (approvalLine(output, status, c.nextStep) ??
               (c.nextStep ? (
                 <p className="text-sm text-text-muted motion-safe:animate-[fadeIn_250ms_ease-out_350ms_both]">
                   {c.nextStep}

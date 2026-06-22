@@ -26,7 +26,7 @@ const STEPS: StepContent[] = [
   {
     eyebrow: "PERSONA · 1 OF 3",
     title: "You're Demo User.",
-    body: "A fresh account with no access yet. Use this switcher to try other personas — Alex has past tickets, Sam and Dana have multi-turn conversation history with the agent.",
+    body: "A fresh account with no access yet. Switch personas to ask as a different user — submissions come through as whoever's active. Alex has past tickets; Sam and Dana have multi-turn histories.",
     element: '[data-tour="persona-switcher"]',
   },
   {

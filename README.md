@@ -68,10 +68,10 @@ Next.js 16 · TypeScript · Tailwind · Anthropic SDK (claude-sonnet-4-6, tool-u
 
 ## Reset between demos
 
-After running the closed-loop demo, Demo User has been added to a real Okta group. Restore to empty state:
+Approving an escalation writes a real Okta group grant, so a persona you experimented as stays changed across runs. This restores every persona to its seeded group state (reads `scenario.json`; idempotent):
 
 ```
-node --env-file=.env.local scripts/reset-demo-user.mts
+node --env-file=.env.local scripts/reset-demo.mts
 ```
 
 ## Credits

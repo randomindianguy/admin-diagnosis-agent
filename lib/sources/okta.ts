@@ -98,49 +98,81 @@ async function build(): Promise<OktaPicture> {
   return { users, groups };
 }
 
-// SID-70: the closed-loop write. Resolves re-keyed ids ("user:<login-local>",
-// "group:<name>") to real Okta ids, then adds the user to the group. Returns a
-// result object (never throws) so the approve route can surface failures cleanly.
-// Invalidates the memoized picture on success so a re-submit reflects the grant.
+type WriteResult = { ok: boolean; error?: string };
+
+const WRITE_HEADERS = () => ({
+  Authorization: `SSWS ${TOKEN}`,
+  Accept: "application/json",
+});
+
+// Resolve re-keyed ids ("user:<login-local>", "group:<name>") to the real Okta
+// internal ids needed for membership writes. Shared by the add/remove writes.
+async function resolveUserAndGroup(
+  userKeyId: string,
+  groupKeyId: string,
+): Promise<{ userId: string; groupId: string } | { error: string }> {
+  const login = `${userKeyId.replace(/^user:/, "")}@${SEED_EMAIL_DOMAIN}`;
+  const groupName = groupKeyId.replace(/^group:/, "");
+
+  const userRes = await fetch(
+    `https://${DOMAIN}/api/v1/users/${encodeURIComponent(login)}`,
+    { headers: WRITE_HEADERS() },
+  );
+  if (!userRes.ok) return { error: `User lookup failed (HTTP ${userRes.status}).` };
+  const user = (await userRes.json()) as { id: string };
+
+  const groupsRes = await fetch(
+    `https://${DOMAIN}/api/v1/groups?q=${encodeURIComponent(groupName)}`,
+    { headers: WRITE_HEADERS() },
+  );
+  if (!groupsRes.ok) return { error: `Group lookup failed (HTTP ${groupsRes.status}).` };
+  const groups = (await groupsRes.json()) as GroupRaw[];
+  const group = groups.find((g) => g.profile?.name === groupName);
+  if (!group) return { error: `Group "${groupName}" not found in Okta.` };
+
+  return { userId: user.id, groupId: group.id };
+}
+
+// SID-70: the closed-loop write — adds the user to the group. Returns a result
+// object (never throws) so callers can surface failures cleanly. Invalidates the
+// memoized picture on success so a re-submit reflects the grant.
 export async function addUserToGroup(
   userKeyId: string,
   groupKeyId: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<WriteResult> {
   if (!DOMAIN || !TOKEN) return { ok: false, error: "Okta is not configured." };
-  const headers = { Authorization: `SSWS ${TOKEN}`, Accept: "application/json" };
   try {
-    const login = `${userKeyId.replace(/^user:/, "")}@${SEED_EMAIL_DOMAIN}`;
-    const groupName = groupKeyId.replace(/^group:/, "");
-
-    const userRes = await fetch(
-      `https://${DOMAIN}/api/v1/users/${encodeURIComponent(login)}`,
-      { headers },
+    const r = await resolveUserAndGroup(userKeyId, groupKeyId);
+    if ("error" in r) return { ok: false, error: r.error };
+    const res = await fetch(
+      `https://${DOMAIN}/api/v1/groups/${r.groupId}/users/${r.userId}`,
+      { method: "PUT", headers: WRITE_HEADERS() },
     );
-    if (!userRes.ok) {
-      return { ok: false, error: `User lookup failed (HTTP ${userRes.status}).` };
-    }
-    const user = (await userRes.json()) as { id: string };
-
-    const groupsRes = await fetch(
-      `https://${DOMAIN}/api/v1/groups?q=${encodeURIComponent(groupName)}`,
-      { headers },
-    );
-    if (!groupsRes.ok) {
-      return { ok: false, error: `Group lookup failed (HTTP ${groupsRes.status}).` };
-    }
-    const groups = (await groupsRes.json()) as GroupRaw[];
-    const group = groups.find((g) => g.profile?.name === groupName);
-    if (!group) return { ok: false, error: `Group "${groupName}" not found in Okta.` };
-
-    const putRes = await fetch(
-      `https://${DOMAIN}/api/v1/groups/${group.id}/users/${user.id}`,
-      { method: "PUT", headers },
-    );
-    if (!putRes.ok) {
-      return { ok: false, error: `Okta group add failed (HTTP ${putRes.status}).` };
-    }
-
+    if (!res.ok) return { ok: false, error: `Okta group add failed (HTTP ${res.status}).` };
     cache = null; // re-submit should see the new membership
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Okta write error." };
+  }
+}
+
+// SID-72: the inverse of addUserToGroup — removes the user from the group. Mirrors
+// the same id-resolution + result-object pattern; used by the demo reset script.
+export async function removeUserFromGroup(
+  userKeyId: string,
+  groupKeyId: string,
+): Promise<WriteResult> {
+  if (!DOMAIN || !TOKEN) return { ok: false, error: "Okta is not configured." };
+  try {
+    const r = await resolveUserAndGroup(userKeyId, groupKeyId);
+    if ("error" in r) return { ok: false, error: r.error };
+    const res = await fetch(
+      `https://${DOMAIN}/api/v1/groups/${r.groupId}/users/${r.userId}`,
+      { method: "DELETE", headers: WRITE_HEADERS() },
+    );
+    if (!res.ok)
+      return { ok: false, error: `Okta group remove failed (HTTP ${res.status}).` };
+    cache = null;
     return { ok: true };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Okta write error." };

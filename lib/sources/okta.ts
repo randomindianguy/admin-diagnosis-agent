@@ -43,6 +43,15 @@ export function getOktaPicture(): Promise<OktaPicture | null> {
   return cache;
 }
 
+// Drop the memoized picture so the next getOktaPicture() rebuilds from live Okta.
+// The add/remove writes call this internally (cache = null); resetAllPersonas()
+// (SID-74) also calls it up front so its diff is computed against REAL current
+// state, not a stale cache — the cron may run in a process that cached an older
+// picture. Exported so callers outside this module can force a clean read.
+export function invalidateOktaPicture(): void {
+  cache = null;
+}
+
 async function build(): Promise<OktaPicture> {
   const rawGroups = await okta<GroupRaw[]>("/groups?limit=200");
   // Skip Okta's built-in "Everyone" group — it isn't part of the access model.

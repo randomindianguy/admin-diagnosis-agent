@@ -68,10 +68,20 @@ Next.js 16 · TypeScript · Tailwind · Anthropic SDK (claude-sonnet-4-6, tool-u
 
 ## Reset between demos
 
-Approving an escalation writes a real Okta group grant, so a persona you experimented as stays changed across runs. This restores every persona to its seeded group state (reads `scenario.json`; idempotent):
+Approving an escalation writes a real Okta group grant, so a persona you experimented as stays changed across runs. Resetting restores every persona to its seeded group state (diffs against `scenario.json`; idempotent).
+
+**Automatic.** A Vercel cron (`vercel.json`) hits `/api/reset` hourly (`0 * * * *`), so the live demo self-heals between sessions. The endpoint is gated on `CRON_SECRET` — set it in the Vercel project's environment variables; Vercel then sends it automatically as a `Bearer` token on cron runs. (If a reviewer is mid-demo when the cron fires, their persona's groups reset under them — an accepted trade-off at demo volume.)
+
+**Manual.** Run the same logic locally (`lib/reset-personas.ts`, shared with the endpoint):
 
 ```
 node --env-file=.env.local scripts/reset-demo.mts
+```
+
+Or trigger the deployed endpoint directly:
+
+```
+curl -H "Authorization: Bearer $CRON_SECRET" https://admin-diagnosis-agent.vercel.app/api/reset
 ```
 
 ## Credits

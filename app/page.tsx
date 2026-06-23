@@ -12,7 +12,8 @@ import { TicketDetail, type LiveTrace } from "@/components/ticket-detail";
 import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
 import { PersonaSwitcher } from "@/components/persona-switcher";
 import { GitHubIcon } from "@/components/icons";
-import { HelpCircle } from "lucide-react";
+import { AboutPanel } from "@/components/about-panel";
+import { HelpCircle, Info } from "lucide-react";
 import { runWalkthrough, WALKTHROUGH_KEY } from "@/lib/walkthrough";
 import "driver.js/dist/driver.css";
 import { useDiagnose } from "@/hooks/use-diagnose";
@@ -104,6 +105,7 @@ export default function Home() {
   // The query that produced the current result (kept for the live retry path).
   const [submitted, setSubmitted] = useState("");
   const [personaView, setPersonaView] = useState<PersonaView>("end-user");
+  const [aboutOpen, setAboutOpen] = useState(false); // SID-76: about-this-demo modal
   // End-user portal (SID-68): which persona is "me", and which past ticket of
   // theirs is open (read-only). Local UI state — the store + admin stay untouched.
   // SID-71: Demo User is the default landing persona — a fresh, empty portal that
@@ -353,13 +355,20 @@ export default function Home() {
   return (
     <main className="flex h-screen w-full flex-col bg-background-primary text-text-primary">
       {/* Shared top bar — the persona toggle is the structural shell switch. */}
-      <header className="flex items-center justify-between border-b border-border px-lg py-md">
+      <header className="flex flex-wrap items-center justify-between gap-x-md gap-y-sm border-b border-border px-lg py-md">
         {/* SID-67 wordmark — type-only, the mark IS the type. Display serif
-            (Newsreader), no shield glyph. Page h1 (SID-64 a11y) preserved. */}
-        <h1 className="font-display text-[22px] font-medium tracking-display text-text-primary">
-          Cleared
-        </h1>
-        <div className="flex items-center gap-md">
+            (Newsreader), no shield glyph. Page h1 (SID-64 a11y) preserved.
+            SID-76: a mono-uppercase byline sits beneath it (eyebrow vocabulary),
+            subordinate to the wordmark, present in every page state. */}
+        <div className="flex min-w-0 flex-col">
+          <h1 className="font-display text-[22px] font-medium leading-none tracking-display text-text-primary">
+            Cleared
+          </h1>
+          <span className="mt-[4px] truncate font-mono text-[11px] uppercase tracking-[0.08em] text-text-muted">
+            Portfolio demo · Built by Sidharth Sundaram
+          </span>
+        </div>
+        <div className="flex shrink-0 items-center gap-sm md:gap-md">
           <PersonaToggle
             value={personaView}
             onChange={handlePersonaChange}
@@ -382,6 +391,15 @@ export default function Home() {
             className="inline-flex h-[44px] w-[44px] items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
           >
             <HelpCircle className="h-5 w-5" aria-hidden />
+          </button>
+          {/* SID-76: about-this-demo — opens the portfolio-context modal. */}
+          <button
+            type="button"
+            onClick={() => setAboutOpen(true)}
+            aria-label="About this demo"
+            className="inline-flex h-[44px] w-[44px] items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <Info className="h-5 w-5" aria-hidden />
           </button>
           <a
             href={REPO_URL}
@@ -604,6 +622,9 @@ export default function Home() {
           </section>
         </div>
       )}
+
+      {/* SID-76: about-this-demo modal — portfolio context, opened from the header. */}
+      <AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </main>
   );
 }

@@ -20,8 +20,8 @@ type StepContent = {
 const STEPS: StepContent[] = [
   {
     eyebrow: "WELCOME",
-    title: "This is Cleared.",
-    body: "An access triage agent that refuses when it's not sure rather than guessing. Three things to know.",
+    title: "This is a portfolio demo.",
+    body: "Cleared is an AI agent I built to show how I think about agentic architecture in high-trust contexts. The thesis: refuse when the evidence isn't sufficient, rather than guess. Three things to know about how it works.",
   },
   {
     eyebrow: "PERSONA · 1 OF 3",

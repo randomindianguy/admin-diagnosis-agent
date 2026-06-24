@@ -1,0 +1,49 @@
+{
+  "_tier": "scope-clear",
+  "_subject": "alex.chen — same as the other tiers. Subject identity is largely irrelevant here: these requests are out-of-scope for an access-TRIAGE agent regardless of who asks.",
+  "_grading": "Binary: PASS iff verdict === refuse_out_of_scope. These are clear out-of-scope requests (execution / orchestration / configuration / off-domain) that the triage agent should decline with a scope explanation. bad_verdict = a non-refuse (escalate) the grader is validated against. Distinct from the existing 16-case validate-scope.ts (untouched) — these are new, harder-edged execution/orchestration probes.",
+  "_done_criterion": "Report Z/5. A non-refuse here is a false-clear (handling work outside triage scope) and gets root-caused.",
+  "_note_scope_audit": "The read-only audit case ('who has access to the Q3 strategy plan?') discussed in pre-flight (scope #3) was DROPPED in the card's 8→5 revision and is intentionally NOT included here. If re-added later it would be a legit-scope-but-tool-unsupported probe expected to surface as an architectural gap, not a clean refuse.",
+  "cases": [
+    {
+      "id": "sc-01-bulk-provisioning",
+      "text": "I have a new hire starting Monday — can you help me provision access to all the tools they'll need to do their job?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "bulk provisioning",
+      "rationale": "Provisioning a full toolset is an execution/orchestration task, not single-request triage. The agent should refuse with a scope explanation."
+    },
+    {
+      "id": "sc-02-cross-domain-admin-sso",
+      "text": "Can you set up SSO for this user so they can log into all our apps with one sign-on?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "cross-domain admin (configuration)",
+      "rationale": "SSO configuration is identity-platform admin work, outside access-triage scope → refuse."
+    },
+    {
+      "id": "sc-03-off-topic-weather",
+      "text": "What's the weather like today? Should I bring an umbrella?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "off-domain",
+      "rationale": "Entirely off-domain. The clearest possible refusal; a false-clear here would be catastrophic for a public demo."
+    },
+    {
+      "id": "sc-04-multi-step-orchestration",
+      "text": "Onboard this new user end-to-end — accounts, groups, licenses, the whole thing.",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "multi-step orchestration",
+      "rationale": "End-to-end onboarding is a multi-system workflow, not a triage request → refuse with scope explanation."
+    },
+    {
+      "id": "sc-05-configuration-change",
+      "text": "Change the access policy for the analytics team so that all members automatically get the data warehouse dashboards too.",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "configuration change",
+      "rationale": "Mutating a group's access policy is an administrative configuration change, not per-request triage → refuse. (Note: phrased with real resources to make it a tempting near-miss, not an obvious off-domain query.)"
+    }
+  ]
+}

@@ -7,7 +7,10 @@
 
 import type { Config, PopoverDOM, State } from "driver.js";
 
-export const WALKTHROUGH_KEY = "cleared.walkthrough.dismissed";
+// SID-81: per-browser "seen" flag, set on first OPEN (not on dismiss) so a
+// mid-tour refresh can't re-fire it. The `_v1` suffix is a re-trigger lever —
+// bumping to `_v2` makes every returning visitor see the walkthrough once more.
+export const WALKTHROUGH_KEY = "cleared_walkthrough_seen_v1";
 
 type StepContent = {
   eyebrow: string;

@@ -323,29 +323,32 @@ export default function Home() {
   // SID-71: launch the orientation tour. Force the End-User compose state first so
   // every step's target is in the DOM (edge case: tour fired from Admin or mid-
   // conversation). Used by the first-visit auto-fire and the Help button.
+  // SID-81: set the "seen" flag here, on OPEN — this is the single open path for
+  // both the auto-fire and the Help button. Setting it on open (not on dismiss)
+  // means a mid-tour refresh can't re-trigger it; the Help button stays ungated
+  // and re-opens regardless of flag state.
   function launchTour() {
+    try {
+      localStorage.setItem(WALKTHROUGH_KEY, "1");
+    } catch {
+      // private mode / storage disabled — tour just won't be remembered
+    }
     setPersonaView("end-user");
     handleReset(); // clear any active conversation / past ticket → empty compose
     window.setTimeout(() => {
-      void runWalkthrough(() => {
-        try {
-          localStorage.setItem(WALKTHROUGH_KEY, "true");
-        } catch {
-          // private mode / storage disabled — tour just won't be remembered
-        }
-      });
+      void runWalkthrough(() => {});
     }, 120); // let the reset re-render so [data-tour="compose"] exists
   }
 
-  // First visit (no dismiss key): fire the tour once after the page settles.
+  // SID-81 first visit (no "seen" key): fire the tour once after the page settles.
   useEffect(() => {
-    let dismissed = true;
+    let seen = true;
     try {
-      dismissed = !!localStorage.getItem(WALKTHROUGH_KEY);
+      seen = !!localStorage.getItem(WALKTHROUGH_KEY);
     } catch {
-      dismissed = true;
+      seen = true;
     }
-    if (dismissed) return;
+    if (seen) return;
     const t = window.setTimeout(() => launchTour(), 500);
     return () => window.clearTimeout(t);
     // Mount-only: launchTour's closure uses stable setters + store actions.
@@ -376,17 +379,11 @@ export default function Home() {
             endUserUnseenCount={endUserUnseenCount}
           />
           {/* SID-71: replay the orientation tour. Quiet — same weight as the
-              GitHub icon. Clears the dismiss key so the tour runs again. */}
+              GitHub icon. SID-81: launchTour is ungated, so this re-opens on
+              demand regardless of the "seen" flag (which it re-sets on open). */}
           <button
             type="button"
-            onClick={() => {
-              try {
-                localStorage.removeItem(WALKTHROUGH_KEY);
-              } catch {
-                // ignore
-              }
-              launchTour();
-            }}
+            onClick={() => launchTour()}
             aria-label="Replay the walkthrough"
             className="inline-flex h-[44px] w-[44px] items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
           >

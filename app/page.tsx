@@ -225,9 +225,13 @@ export default function Home() {
     (query: string, agentId: string) => {
       setTraceSettled(false);
       setSubmitKey((k) => k + 1);
+      // SID-80: read the active submission id straight from the store — the closure's
+      // `activeId` can be a render behind a just-created submission. Threaded as
+      // ticketId so the server groups logged queries by ticket (storage-only).
+      const ticketId = useSubmissions.getState().activeId ?? undefined;
       // SID-70: reason against the active persona's real Okta identity.
       diagnose.mutate(
-        { symptom: query, personaUserId: currentPersona.userId },
+        { symptom: query, personaUserId: currentPersona.userId, ticketId },
         {
           onSuccess: (output) => {
             addAgentTurn(output, agentId);

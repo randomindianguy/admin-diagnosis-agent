@@ -1,7 +1,8 @@
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { retrieveContext } from "@/lib/retrieval";
 import { runGatedDiagnosis } from "@/lib/gate-signals";
 import { notifyRoutingChannel } from "@/lib/notify";
+import { logQuery } from "@/lib/query-log";
 
 // Retrieval reads the filesystem (reference-library/, scenario.json), so this
 // route runs on the Node.js runtime, not edge.
@@ -41,6 +42,15 @@ export async function POST(request: Request): Promise<Response> {
       ? rawPersona
       : undefined;
 
+  // SID-80: the client-side submission id, threaded through so logged rows group
+  // by ticket (mirrors personaUserId above). Falls back to "unknown" so the NOT
+  // NULL column always has a value even if an old client omits it.
+  const rawTicketId = (body as { ticketId?: unknown }).ticketId;
+  const ticketId =
+    typeof rawTicketId === "string" && rawTicketId.length > 0
+      ? rawTicketId
+      : "unknown";
+
   // --- Pipeline. The try wraps ONLY retrieve → gate, so its catch returns 500
   //     exclusively for upstream/internal failure — not for client input. ---
   try {
@@ -60,6 +70,14 @@ export async function POST(request: Request): Promise<Response> {
     ) {
       output.approval_action.slack_permalink = permalink;
     }
+    // SID-80: persist the user's query for offline comparison against the eval set.
+    // STORAGE ONLY (no read path in the app). Runs via after() so the insert happens
+    // AFTER the response is flushed — zero added latency, and unlike a bare un-awaited
+    // promise it isn't dropped when the serverless function freezes. logQuery never
+    // throws, so a logging outage can't affect this already-final response.
+    after(
+      logQuery({ ticket_id: ticketId, message: symptom, verdict: output.verdict }),
+    );
     return NextResponse.json(output, { status: 200 });
   } catch (err) {
     const message =

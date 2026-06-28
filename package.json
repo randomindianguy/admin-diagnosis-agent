@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",
+    "@libsql/client": "^0.17.4",
     "@tanstack/react-query": "^5.101.0",
     "driver.js": "^1.4.0",
     "lucide-react": "^1.18.0",

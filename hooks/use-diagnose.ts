@@ -6,7 +6,13 @@ import type { DiagnosisOutput } from "@/lib/schema";
 // POST the symptom to /api/diagnose. On a non-2xx, surface the {error} message
 // from the body (Q16's error channel) so the UI's error state can display it.
 // SID-70: personaUserId tells the backend which Okta identity to reason against.
-export type DiagnoseInput = { symptom: string; personaUserId?: string };
+// SID-80: ticketId is the client-side submission id, sent so logged queries group
+// by ticket (storage-only — the server uses it for query_log, nothing else).
+export type DiagnoseInput = {
+  symptom: string;
+  personaUserId?: string;
+  ticketId?: string;
+};
 
 async function postDiagnose(input: DiagnoseInput): Promise<DiagnosisOutput> {
   const res = await fetch("/api/diagnose", {

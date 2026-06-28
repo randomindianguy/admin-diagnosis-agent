@@ -13,7 +13,7 @@ import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
 import { PersonaSwitcher } from "@/components/persona-switcher";
 import { GitHubIcon } from "@/components/icons";
 import { AboutPanel } from "@/components/about-panel";
-import { HelpCircle, Info } from "lucide-react";
+import { HelpCircle, Info, RotateCcw } from "lucide-react";
 import { runWalkthrough, WALKTHROUGH_KEY } from "@/lib/walkthrough";
 import "driver.js/dist/driver.css";
 import { useDiagnose } from "@/hooks/use-diagnose";
@@ -106,6 +106,10 @@ export default function Home() {
   const [submitted, setSubmitted] = useState("");
   const [personaView, setPersonaView] = useState<PersonaView>("end-user");
   const [aboutOpen, setAboutOpen] = useState(false); // SID-76: about-this-demo modal
+  // SID-82: visitor-triggered demo reset. `resetting` disables the button during
+  // the ~3s Okta round-trip; `resetToast` is the inline confirmation/error line.
+  const [resetting, setResetting] = useState(false);
+  const [resetToast, setResetToast] = useState<string | null>(null);
   // End-user portal (SID-68): which persona is "me", and which past ticket of
   // theirs is open (read-only). Local UI state — the store + admin stay untouched.
   // SID-71: Demo User is the default landing persona — a fresh, empty portal that
@@ -136,6 +140,7 @@ export default function Home() {
   const addAgentTurn = useSubmissions((s) => s.addAgentTurn);
   const resetStore = useSubmissions((s) => s.reset);
   const seed = useSubmissions((s) => s.seed);
+  const reseed = useSubmissions((s) => s.reseed);
   const selectTicket = useSubmissions((s) => s.selectTicket);
   const markAllSeen = useSubmissions((s) => s.markAllSeen);
   const markDecisionsSeen = useSubmissions((s) => s.markDecisionsSeen);
@@ -355,6 +360,37 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // SID-82: visitor-triggered demo reset. Calls the unauthenticated /api/reset-public
+  // (same resetAllPersonas() the cron runs), then reseed()s the local feed back to
+  // baseline so the admin sees a clean slate. No confirmation modal — the click IS
+  // the intent. The rate limiter returns 429; its message surfaces in the toast.
+  async function handleResetDemo() {
+    if (resetting) return;
+    setResetting(true);
+    setResetToast(null);
+    try {
+      const res = await fetch("/api/reset-public", { method: "POST" });
+      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        setResetToast(data.error ?? "Reset failed.");
+      } else {
+        reseed();
+        setResetToast("Demo reset to baseline.");
+      }
+    } catch {
+      setResetToast("Reset failed — network error.");
+    } finally {
+      setResetting(false);
+    }
+  }
+
+  // Auto-dismiss the reset toast after a few seconds.
+  useEffect(() => {
+    if (!resetToast) return;
+    const t = window.setTimeout(() => setResetToast(null), 3500);
+    return () => window.clearTimeout(t);
+  }, [resetToast]);
+
   return (
     <main className="flex h-screen w-full flex-col bg-background-primary text-text-primary">
       {/* Shared top bar — the persona toggle is the structural shell switch. */}
@@ -378,6 +414,20 @@ export default function Home() {
             unseenCount={unseenCount}
             endUserUnseenCount={endUserUnseenCount}
           />
+          {/* SID-82: visitor-triggered demo reset — admin view only. During a
+              broadcast the hourly cron can't keep up with peak traffic, so anyone
+              can clear the demo to baseline on demand. No confirm modal by design. */}
+          {personaView === "admin" && (
+            <button
+              type="button"
+              onClick={handleResetDemo}
+              disabled={resetting}
+              className="inline-flex min-h-[44px] items-center gap-xs rounded-md border border-border px-md py-xs text-body text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50"
+            >
+              <RotateCcw className="h-4 w-4" aria-hidden />
+              {resetting ? "Resetting…" : "Reset demo"}
+            </button>
+          )}
           {/* SID-71: replay the orientation tour. Quiet — same weight as the
               GitHub icon. SID-81: launchTour is ungated, so this re-opens on
               demand regardless of the "seen" flag (which it re-sets on open). */}
@@ -622,6 +672,18 @@ export default function Home() {
 
       {/* SID-76: about-this-demo modal — portfolio context, opened from the header. */}
       <AboutPanel open={aboutOpen} onClose={() => setAboutOpen(false)} />
+
+      {/* SID-82: inline reset confirmation — a quiet warm-surface toast, bottom
+          centre, auto-dismissed. Polite live region so it's announced. */}
+      {resetToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-lg left-1/2 z-20 -translate-x-1/2 rounded-md border border-border bg-background-secondary px-md py-sm text-body text-text-primary"
+        >
+          {resetToast}
+        </div>
+      )}
     </main>
   );
 }

@@ -68,6 +68,7 @@ type SubmissionsState = {
   addAgentTurn: (output: DiagnosisOutput, turnId: string) => void;
   reset: () => void;
   seed: () => void; // pre-load the demo tickets once (SID-63)
+  reseed: () => void; // SID-82: force feed back to baseline after a demo reset
   selectTicket: (id: string) => void; // admin picks a feed ticket
   markAllSeen: () => void; // clears the unseen indicator (on toggle → Admin)
   markDecisionsSeen: () => void; // SID-75: clears the end-user decision indicator (toggle → End user)
@@ -157,6 +158,25 @@ export const useSubmissions = create<SubmissionsState>((set) => ({
         null,
       );
       return { submissions: seeds, seeded: true, selectedId: newest?.id ?? null };
+    }),
+
+  // SID-82: after a visitor-triggered Okta reset, drop every live submission and
+  // approval state so the feed shows exactly what a fresh visitor sees. Same shape
+  // as seed() but UNCONDITIONAL — it ignores the `seeded` guard (this is an explicit
+  // "back to baseline", not the once-on-mount preload) and also clears activeId.
+  reseed: () =>
+    set(() => {
+      const seeds = seedSubmissions(Date.now());
+      const newest = seeds.reduce<Submission | null>(
+        (a, b) => (!a || b.createdAt > a.createdAt ? b : a),
+        null,
+      );
+      return {
+        submissions: seeds,
+        seeded: true,
+        activeId: null,
+        selectedId: newest?.id ?? null,
+      };
     }),
 
   selectTicket: (id) => set({ selectedId: id }),

@@ -35,44 +35,64 @@ const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
 // trace signals it's settled (SID-50).
 const TOTAL_TRACE_ROWS = 7;
 
-// SID-62 — six end-user scenarios for eyes-on, spanning the verdict shapes:
-// four demonstrative (clean resolve, owner routing, escalate, refuse→resolve),
-// Maya (seed-1 nested-inheritance resolve + evidence-page test), and an
-// out-of-scope one. Click pre-fills the input (and resets any conversation).
-const SCENARIOS: { label: string; query: string }[] = [
+// SID-84 — five end-user scenarios, ORDERED + COLOR-GROUPED by the verdict each
+// reliably triggers for the Demo User landing persona (resolve → escalate → refuse),
+// so the verdict taxonomy reads top-to-bottom before the visitor clicks anything.
+// Each chip is tinted with its target verdict's badge color (verdict-pill palette).
+// Note: the palette has three tones — "Needs detail" and "Refused" both render in
+// the `refuse` tone, so both refuse-family chips share it. All five verdicts were
+// verified live against the current workspace state. Click pre-fills the input
+// (no auto-submit) and resets any conversation.
+type ChipTone = "resolve" | "escalate" | "refuse";
+
+const SCENARIOS: { label: string; query: string; tone: ChipTone }[] = [
   {
-    // resolve — already has access via group (existing_group_access)
-    label: "I need the analytics dashboard",
-    query: "I need access to the analytics dashboard.",
-  },
-  {
-    // resolve — owner-controlled, route to owner (resource_owner_routing)
+    // resolve — owner-controlled, route to owner (resource_owner_routing). The only
+    // resolve reachable for a zero-group persona (others are group-gated → escalate).
     label: "I can't open the Q3 strategy plan",
     query: "I can't open the Q3 strategy plan.",
+    tone: "resolve",
   },
   {
     // escalate — onboarding provisioning gap (route to identity team)
     label: "New hire needs the data warehouse",
     query:
       "I joined the analytics team last week and need access to the data warehouse dashboards.",
+    tone: "escalate",
   },
   {
-    // refuse → resolve loop — vague resource ("which dashboard?")
-    label: "I can't open the dashboard",
-    query: "I can't open the dashboard.",
+    // escalate — role transition, lost access (provisioning gap)
+    label: "I changed roles last week and lost access to marketing folders",
+    query: "I changed roles last week and lost access to marketing folders.",
+    tone: "escalate",
   },
   {
-    // resolve — confident diagnosis (nested-subgroup inheritance gap)
-    label: "I can't open a shared folder",
-    query:
-      "I'm Maya on the data team and I can't open the Q3 Revenue Models folder in Drive.",
+    // refuse · needs detail — intent too vague to ground (intent_ambiguity)
+    label: "Things are broken",
+    query: "Things are broken.",
+    tone: "refuse",
   },
   {
-    // out_of_scope — policy question, not an access diagnosis.
-    label: "What's the password policy?",
-    query: "What's the company policy on how often we have to reset passwords?",
+    // refuse · out of scope — policy question, not an access diagnosis
+    label: "What's the company holiday policy?",
+    query: "What's the company holiday policy?",
+    tone: "refuse",
   },
 ];
+
+// Chip tint per verdict tone — mirrors the verdict-pill badge palette (same color
+// tokens + opacities) so the colors a visitor learns here reinforce on the admin
+// badges. Subtle: tinted border + low-opacity fill, neutral text that brightens on
+// hover (the existing hover behaviour, kept identity-preserving rather than going
+// neutral-bordered on hover).
+const CHIP_TONE: Record<ChipTone, string> = {
+  resolve:
+    "border-verdict-resolve/40 bg-verdict-resolve/10 hover:bg-verdict-resolve/[0.15]",
+  escalate:
+    "border-verdict-escalate/40 bg-verdict-escalate/10 hover:bg-verdict-escalate/[0.15]",
+  refuse:
+    "border-verdict-refuse/50 bg-verdict-refuse/10 hover:bg-verdict-refuse/[0.15]",
+};
 
 // Scenario chips — empty-state suggestions. Click resets any conversation and
 // pre-fills the input (no auto-submit).
@@ -91,7 +111,7 @@ function ScenarioChips({
           type="button"
           onClick={() => onPick(s.query)}
           disabled={disabled}
-          className="inline-flex min-h-[44px] items-center rounded-md border border-border px-md py-xs text-sm text-text-secondary transition-colors hover:border-text-muted hover:text-text-primary disabled:opacity-50"
+          className={`inline-flex min-h-[44px] items-center rounded-md border px-md py-xs text-sm text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 ${CHIP_TONE[s.tone]}`}
         >
           {s.label}
         </button>

@@ -1,0 +1,55 @@
+{
+  "_note": "Sibling documentation — NOT loaded by validate-basics.ts. Records 5-axis diversity coverage per case. Keys are the full manifest ids. Within each seed group, problem/topic/user/pattern are inherited from the seed and only input_style varies across the paraphrases (casual / formal / seed-specific third style).",
+  "axes": ["problem", "topic", "user", "input_style", "pattern"],
+  "cases": {
+    "basics-01-q3-strategy-owner-routed": { "problem": "owner-routed-resource", "topic": "strategic-document", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "single-resource-direct" },
+    "basics-01a-casual": { "problem": "owner-routed-resource", "topic": "strategic-document", "user": "demo-user-default", "input_style": "casual", "pattern": "single-resource-direct" },
+    "basics-01b-formal": { "problem": "owner-routed-resource", "topic": "strategic-document", "user": "demo-user-default", "input_style": "formal", "pattern": "single-resource-direct" },
+    "basics-01c-interrogative": { "problem": "owner-routed-resource", "topic": "strategic-document", "user": "demo-user-default", "input_style": "interrogative", "pattern": "single-resource-direct" },
+
+    "basics-02-new-hire-data-warehouse": { "problem": "onboarding-provisioning-gap", "topic": "data-warehouse", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "onboarding-request" },
+    "basics-02a-casual": { "problem": "onboarding-provisioning-gap", "topic": "data-warehouse", "user": "demo-user-default", "input_style": "casual", "pattern": "onboarding-request" },
+    "basics-02b-formal": { "problem": "onboarding-provisioning-gap", "topic": "data-warehouse", "user": "demo-user-default", "input_style": "formal", "pattern": "onboarding-request" },
+    "basics-02c-urgency": { "problem": "onboarding-provisioning-gap", "topic": "data-warehouse", "user": "demo-user-default", "input_style": "urgency", "pattern": "onboarding-request" },
+
+    "basics-03-role-transition-marketing": { "problem": "role-transition-access-loss", "topic": "marketing-folders", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "access-loss-report" },
+    "basics-03a-casual-revised": { "problem": "role-transition-access-loss", "topic": "marketing-folders", "user": "demo-user-default", "input_style": "casual", "pattern": "access-loss-report" },
+    "basics-03b-formal": { "problem": "role-transition-access-loss", "topic": "marketing-folders", "user": "demo-user-default", "input_style": "formal", "pattern": "access-loss-report" },
+    "basics-03c-causal": { "problem": "role-transition-access-loss", "topic": "marketing-folders", "user": "demo-user-default", "input_style": "causal", "pattern": "access-loss-report" },
+
+    "basics-04-analytics-dashboard-direct": { "problem": "direct-access-request", "topic": "analytics-dashboard", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "single-resource-direct" },
+    "basics-04a-casual": { "problem": "direct-access-request", "topic": "analytics-dashboard", "user": "demo-user-default", "input_style": "casual", "pattern": "single-resource-direct" },
+    "basics-04b-formal": { "problem": "direct-access-request", "topic": "analytics-dashboard", "user": "demo-user-default", "input_style": "formal", "pattern": "single-resource-direct" },
+    "basics-04c-justification": { "problem": "direct-access-request", "topic": "analytics-dashboard", "user": "demo-user-default", "input_style": "justification", "pattern": "single-resource-direct" },
+
+    "basics-05-revenue-models-folder": { "problem": "blocked-resource-access", "topic": "revenue-models-folder", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "single-resource-direct" },
+    "basics-05a-casual": { "problem": "blocked-resource-access", "topic": "revenue-models-folder", "user": "demo-user-default", "input_style": "casual", "pattern": "single-resource-direct" },
+    "basics-05b-formal": { "problem": "blocked-resource-access", "topic": "revenue-models-folder", "user": "demo-user-default", "input_style": "formal", "pattern": "single-resource-direct" },
+    "basics-05c-error-led": { "problem": "blocked-resource-access", "topic": "revenue-models-folder", "user": "demo-user-default", "input_style": "error-led", "pattern": "single-resource-direct" },
+
+    "basics-06-data-warehouse-error-message": { "problem": "access-denied-error", "topic": "data-warehouse", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "error-message-report" },
+    "basics-06a-casual": { "problem": "access-denied-error", "topic": "data-warehouse", "user": "demo-user-default", "input_style": "casual", "pattern": "error-message-report" },
+    "basics-06b-formal": { "problem": "access-denied-error", "topic": "data-warehouse", "user": "demo-user-default", "input_style": "formal", "pattern": "error-message-report" },
+    "basics-06c-symptom-then-question": { "problem": "access-denied-error", "topic": "data-warehouse", "user": "demo-user-default", "input_style": "symptom-then-question", "pattern": "error-message-report" },
+
+    "basics-07-onboarding-multiple-resources": { "problem": "multi-resource-onboarding", "topic": "data-warehouse+revenue-models", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "multi-resource-request" },
+    "basics-07a-casual": { "problem": "multi-resource-onboarding", "topic": "data-warehouse+revenue-models", "user": "demo-user-default", "input_style": "casual", "pattern": "multi-resource-request" },
+    "basics-07b-formal": { "problem": "multi-resource-onboarding", "topic": "data-warehouse+revenue-models", "user": "demo-user-default", "input_style": "formal", "pattern": "multi-resource-request" },
+    "basics-07c-scope-stating": { "problem": "multi-resource-onboarding", "topic": "data-warehouse+revenue-models", "user": "demo-user-default", "input_style": "scope-stating", "pattern": "multi-resource-request" },
+
+    "basics-08-password-policy": { "problem": "policy-question", "topic": "password-policy", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "policy-inquiry" },
+    "basics-08a-casual": { "problem": "policy-question", "topic": "password-policy", "user": "demo-user-default", "input_style": "casual", "pattern": "policy-inquiry" },
+    "basics-08b-formal": { "problem": "policy-question", "topic": "password-policy", "user": "demo-user-default", "input_style": "formal", "pattern": "policy-inquiry" },
+    "basics-08c-specific-curiosity": { "problem": "policy-question", "topic": "password-policy", "user": "demo-user-default", "input_style": "specific-curiosity", "pattern": "policy-inquiry" },
+
+    "basics-09-screen-share": { "problem": "app-howto", "topic": "screen-sharing", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "howto-inquiry" },
+    "basics-09a-casual": { "problem": "app-howto", "topic": "screen-sharing", "user": "demo-user-default", "input_style": "casual", "pattern": "howto-inquiry" },
+    "basics-09b-formal": { "problem": "app-howto", "topic": "screen-sharing", "user": "demo-user-default", "input_style": "formal", "pattern": "howto-inquiry" },
+    "basics-09c-problem-led": { "problem": "app-howto", "topic": "screen-sharing", "user": "demo-user-default", "input_style": "problem-led", "pattern": "howto-inquiry" },
+
+    "basics-10-expense-reimbursement": { "problem": "finance-process", "topic": "expense-reimbursement", "user": "demo-user-default", "input_style": "simple-declarative", "pattern": "process-inquiry" },
+    "basics-10a-casual": { "problem": "finance-process", "topic": "expense-reimbursement", "user": "demo-user-default", "input_style": "casual", "pattern": "process-inquiry" },
+    "basics-10b-formal": { "problem": "finance-process", "topic": "expense-reimbursement", "user": "demo-user-default", "input_style": "formal", "pattern": "process-inquiry" },
+    "basics-10c-process-question": { "problem": "finance-process", "topic": "expense-reimbursement", "user": "demo-user-default", "input_style": "process-question", "pattern": "process-inquiry" }
+  }
+}

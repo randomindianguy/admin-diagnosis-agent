@@ -1,0 +1,337 @@
+{
+  "_tier": "basics",
+  "_subject": "demo.user — first-visit landing persona. Member of NO groups (direct_group_memberships: []). Has nothing group-gated, so every group-gated resource (analytics dashboard, data warehouse dashboards, Q3 Revenue Models) requires provisioning → escalate. The only resolve reachable is the owner-routed Q3 strategy plan (grants: [], owner = Strategy team), routable for any requester. Out-of-scope asks (policy / how-to / finance) refuse. Bound via retrieveContext(text, 'user:demo.user') + the gated 3-sample path (runGatedDiagnosis), matching the live verification.",
+  "_grading": "Binary per case: PASS iff verdict ∈ expected_verdicts. bad_verdict is the synthetic deliberately-bad output each grader is validated against (must FAIL) in PHASE 1 before the live run.",
+  "_done_criterion": "Report X/40. All 40 verified live (gated, demo.user) across SID-eval-verify + paraphrase + 03a-revised before filing.",
+  "cases": [
+    {
+      "id": "basics-01-q3-strategy-owner-routed",
+      "text": "I can't open the Q3 strategy plan.",
+      "expected_verdicts": ["resolve"],
+      "bad_verdict": "escalate",
+      "axis": "owner-routed resource · simple-declarative",
+      "rationale": "The Q3 strategy plan is owner-controlled (no group grant), so the answer is route-to-owner — resolvable for any requester regardless of group membership."
+    },
+    {
+      "id": "basics-01a-casual",
+      "text": "hey, the Q3 strategy plan won't open for me",
+      "expected_verdicts": ["resolve"],
+      "bad_verdict": "escalate",
+      "axis": "owner-routed resource · casual",
+      "rationale": "Same owner-routed resolve as the seed; casual register must not change the verdict."
+    },
+    {
+      "id": "basics-01b-formal",
+      "text": "I'm unable to access the Q3 strategy plan document. Could you help me understand why?",
+      "expected_verdicts": ["resolve"],
+      "bad_verdict": "escalate",
+      "axis": "owner-routed resource · formal",
+      "rationale": "Same owner-routed resolve; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-01c-interrogative",
+      "text": "Why can't I open the Q3 strategy plan?",
+      "expected_verdicts": ["resolve"],
+      "bad_verdict": "escalate",
+      "axis": "owner-routed resource · interrogative",
+      "rationale": "Same owner-routed resolve; question framing must not change the verdict."
+    },
+
+    {
+      "id": "basics-02-new-hire-data-warehouse",
+      "text": "I joined the analytics team last week and need access to the data warehouse dashboards.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "onboarding provisioning gap · simple-declarative",
+      "rationale": "Data warehouse dashboards are data-team gated; demo.user has no groups, so access requires provisioning → escalate."
+    },
+    {
+      "id": "basics-02a-casual",
+      "text": "started on analytics last week, can someone get me into the data warehouse dashboards?",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "onboarding provisioning gap · casual",
+      "rationale": "Same provisioning gap; casual register must not change the verdict."
+    },
+    {
+      "id": "basics-02b-formal",
+      "text": "As a new member of the analytics team, I require access to the data warehouse dashboards to perform my role.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "onboarding provisioning gap · formal",
+      "rationale": "Same provisioning gap; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-02c-urgency",
+      "text": "New on analytics team, blocked on data warehouse dashboards — need access to start contributing.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "onboarding provisioning gap · urgency",
+      "rationale": "Same provisioning gap; compressed/urgency framing must not lose the persona context or change the verdict."
+    },
+
+    {
+      "id": "basics-03-role-transition-marketing",
+      "text": "I changed roles last week and lost access to marketing folders.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "role-transition access loss · simple-declarative",
+      "rationale": "A role change left the requester without a needed grant; demo.user has no provisioning for it → escalate."
+    },
+    {
+      "id": "basics-03a-casual-revised",
+      "text": "switched roles last week and now I can't get into the marketing campaigns folder",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "role-transition access loss · casual",
+      "rationale": "Revised to a specific 'marketing campaigns folder' so the casual register grounds the resource (the original plural-unspecified phrasing drifted to refuse·resource_ambiguity)."
+    },
+    {
+      "id": "basics-03b-formal",
+      "text": "Following my role change last week, my access to the marketing folders appears to have been revoked.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "role-transition access loss · formal",
+      "rationale": "Same role-transition gap; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-03c-causal",
+      "text": "Lost my marketing folder access — happened after my role transition last week.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "role-transition access loss · causal",
+      "rationale": "Same role-transition gap; symptom-then-cause framing must not change the verdict."
+    },
+
+    {
+      "id": "basics-04-analytics-dashboard-direct",
+      "text": "I need access to the analytics dashboard for my role.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "direct access request · simple-declarative",
+      "rationale": "The analytics dashboard is analytics-team gated; demo.user is not in the group → provisioning needed → escalate."
+    },
+    {
+      "id": "basics-04a-casual",
+      "text": "can i get access to the analytics dashboard? i need it for my work",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "direct access request · casual",
+      "rationale": "Same group-gap; casual register must not change the verdict."
+    },
+    {
+      "id": "basics-04b-formal",
+      "text": "Requesting access to the analytics dashboard, as it's required for my role.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "direct access request · formal",
+      "rationale": "Same group-gap; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-04c-justification",
+      "text": "My role requires the analytics dashboard but I don't have access to it.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "direct access request · justification",
+      "rationale": "Same group-gap; role-justification framing must not change the verdict."
+    },
+
+    {
+      "id": "basics-05-revenue-models-folder",
+      "text": "I can't open the Q3 Revenue Models folder in Drive.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "blocked resource access · simple-declarative",
+      "rationale": "Q3 Revenue Models is data-team gated; demo.user has no groups → provisioning needed → escalate."
+    },
+    {
+      "id": "basics-05a-casual",
+      "text": "the Q3 Revenue Models folder in Drive won't open for me",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "blocked resource access · casual",
+      "rationale": "Same group-gap; casual register must not change the verdict."
+    },
+    {
+      "id": "basics-05b-formal",
+      "text": "I'm encountering an access issue with the Q3 Revenue Models folder in Drive.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "blocked resource access · formal",
+      "rationale": "Same group-gap; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-05c-error-led",
+      "text": "Q3 Revenue Models folder in Drive — getting blocked when I try to open it.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "blocked resource access · error-led",
+      "rationale": "Same group-gap; resource-then-symptom framing must not change the verdict."
+    },
+
+    {
+      "id": "basics-06-data-warehouse-error-message",
+      "text": "The data warehouse is showing 'access denied' when I try to open it.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "access-denied error · simple-declarative",
+      "rationale": "The data warehouse is data-team gated; demo.user has no access → the error reflects a real provisioning gap → escalate."
+    },
+    {
+      "id": "basics-06a-casual",
+      "text": "getting access denied on the data warehouse, what's up with that?",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "access-denied error · casual",
+      "rationale": "Same gap; conversational hedge must not pull retrieval off the resource or change the verdict."
+    },
+    {
+      "id": "basics-06b-formal",
+      "text": "The data warehouse is returning an access-denied error when I attempt to access it.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "access-denied error · formal",
+      "rationale": "Same gap; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-06c-symptom-then-question",
+      "text": "Access denied on data warehouse — can someone check what's wrong?",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "access-denied error · symptom-then-question",
+      "rationale": "Same gap; symptom-then-question framing must not change the verdict."
+    },
+
+    {
+      "id": "basics-07-onboarding-multiple-resources",
+      "text": "I just joined the data team and need access to the data warehouse and revenue models folder.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "multi-resource onboarding · simple-declarative",
+      "rationale": "Both resources are data-team gated; the bundled request collapses to one baseline data-team provisioning gap → single clean escalate (no partial/resolve split)."
+    },
+    {
+      "id": "basics-07a-casual",
+      "text": "just joined data team, need data warehouse + revenue models folder access",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "multi-resource onboarding · casual",
+      "rationale": "Same bundled provisioning gap; compressed register must not lose the persona context or change the verdict."
+    },
+    {
+      "id": "basics-07b-formal",
+      "text": "As a new member of the data team, I need to be provisioned with access to both the data warehouse and the revenue models folder.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "multi-resource onboarding · formal",
+      "rationale": "Same bundled provisioning gap; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-07c-scope-stating",
+      "text": "Data team onboarding — blocked on data warehouse and revenue models folder, both needed.",
+      "expected_verdicts": ["escalate"],
+      "bad_verdict": "resolve",
+      "axis": "multi-resource onboarding · scope-stating",
+      "rationale": "Same bundled provisioning gap; scope-stating compression must not lose the persona context or change the verdict."
+    },
+
+    {
+      "id": "basics-08-password-policy",
+      "text": "What's the company password reset policy?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "policy question · simple-declarative",
+      "rationale": "A policy question, not a workspace-access diagnosis — outside the agent's scope → refuse."
+    },
+    {
+      "id": "basics-08a-casual",
+      "text": "how often do we have to reset passwords here?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "policy question · casual",
+      "rationale": "Same out-of-scope policy question; access-adjacent password wording must not be over-interpreted as an access concern."
+    },
+    {
+      "id": "basics-08b-formal",
+      "text": "Could you tell me what the company's password reset policy is?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "policy question · formal",
+      "rationale": "Same out-of-scope policy question; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-08c-specific-curiosity",
+      "text": "Trying to find the password reset policy — where would I look?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "policy question · specific-curiosity",
+      "rationale": "Same out-of-scope policy question; where-to-look framing must not change the verdict."
+    },
+
+    {
+      "id": "basics-09-screen-share",
+      "text": "Can you remind me how to share my screen in meetings?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "app how-to · simple-declarative",
+      "rationale": "An application how-to / IT-support question, not a workspace-access diagnosis → refuse."
+    },
+    {
+      "id": "basics-09a-casual",
+      "text": "how do I share my screen in meetings again? keep forgetting",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "app how-to · casual",
+      "rationale": "Same out-of-scope how-to; casual register must not change the verdict."
+    },
+    {
+      "id": "basics-09b-formal",
+      "text": "Could you walk me through the screen sharing process for meetings?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "app how-to · formal",
+      "rationale": "Same out-of-scope how-to; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-09c-problem-led",
+      "text": "Need to share my screen in a meeting but can't remember how to do it.",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "app how-to · problem-led",
+      "rationale": "Same out-of-scope how-to; problem-led framing must not change the verdict."
+    },
+
+    {
+      "id": "basics-10-expense-reimbursement",
+      "text": "Can you help me file an expense reimbursement?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "finance process · simple-declarative",
+      "rationale": "A finance/expense process, not a workspace-access diagnosis → refuse."
+    },
+    {
+      "id": "basics-10a-casual",
+      "text": "need to file an expense, can you help?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "finance process · casual",
+      "rationale": "Same out-of-scope finance process; casual register must not change the verdict."
+    },
+    {
+      "id": "basics-10b-formal",
+      "text": "I'd like assistance with submitting an expense reimbursement request.",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "finance process · formal",
+      "rationale": "Same out-of-scope finance process; formal register must not change the verdict."
+    },
+    {
+      "id": "basics-10c-process-question",
+      "text": "What's the process for filing expense reimbursements?",
+      "expected_verdicts": ["refuse_out_of_scope"],
+      "bad_verdict": "escalate",
+      "axis": "finance process · process-question",
+      "rationale": "Same out-of-scope finance process; process-question framing must not change the verdict."
+    }
+  ]
+}

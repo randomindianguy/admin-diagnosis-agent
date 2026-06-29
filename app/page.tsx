@@ -13,6 +13,7 @@ import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
 import { PersonaSwitcher } from "@/components/persona-switcher";
 import { GitHubIcon } from "@/components/icons";
 import { AboutPanel } from "@/components/about-panel";
+import { PipelineTimeline } from "@/components/pipeline-timeline";
 import { HelpCircle, Info, RotateCcw } from "lucide-react";
 import { runWalkthrough, WALKTHROUGH_KEY } from "@/lib/walkthrough";
 import "driver.js/dist/driver.css";
@@ -147,6 +148,10 @@ export default function Home() {
   const [traceSettled, setTraceSettled] = useState(false);
   const revealedRowCount = useTraceReveal(submitKey, TOTAL_TRACE_ROWS);
   const swappedRowCount = useTraceReveal(resolveKey, TOTAL_TRACE_ROWS, 150);
+  // SID-90: end-user Pipeline Timeline reveal — 5 tiles, keyed off resolveKey so it
+  // paces in AFTER the verdict lands (reduced-motion jumps straight to 5).
+  const PIPELINE_STAGES = 5;
+  const timelineRevealed = useTraceReveal(resolveKey, PIPELINE_STAGES);
   const handleSettled = useCallback(() => setTraceSettled(true), []);
   const diagnose = useDiagnose();
 
@@ -580,6 +585,24 @@ export default function Home() {
                       )}
                       {/* SID-75: approval payoff lands as a new card below. */}
                       {approvalResultBlock(active)}
+                      {/* SID-90: Pipeline Timeline — paced reveal of the system's
+                          stages below the settled verdict. Only once the latest turn
+                          has landed (not mid-request). CTA pivots to admin with this
+                          ticket pre-selected. */}
+                      {!pendingAgentId &&
+                        (() => {
+                          const out = lastAgentOutput(active);
+                          return out ? (
+                            <PipelineTimeline
+                              output={out}
+                              revealed={timelineRevealed}
+                              onOpenAdmin={() => {
+                                selectTicket(active.id);
+                                handlePersonaChange("admin");
+                              }}
+                            />
+                          ) : null;
+                        })()}
                       <div ref={bottomRef} />
                     </div>
                   </div>

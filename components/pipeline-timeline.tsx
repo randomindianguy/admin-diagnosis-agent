@@ -6,18 +6,21 @@ import type { DiagnosisOutput } from "@/lib/schema";
 import type { StatusFacts } from "@/lib/retrieval";
 
 // SID-90 Pipeline Timeline — surfaces the system's pipeline in END-USER view so the
-// architectural aha lands without a toggle. Five tiles, revealed by the existing
-// paced reveal (useTraceReveal, driven from the page), each clickable for a one-line
-// outcome summary. NOT the full reasoning trace — these are headlines that point to
-// admin view for the full article. No streaming, no backend changes: every summary
-// is derived from fields already in the DiagnosisOutput payload (same derivations as
-// the admin reasoning-trace, kept consistent).
+// architectural aha lands without a toggle. Five tiles whose summaries are derived
+// from fields already in the DiagnosisOutput payload (same derivations as the admin
+// reasoning-trace, kept consistent). No streaming, no backend changes.
 //
-// Honesty: a refuse_out_of_scope payload carries ONLY {verdict, refuse_reason,
-// missing_info} — the access-diagnosis stages don't drive a scope refusal and aren't
-// in the payload. So for refuse, tiles 1–4 render grayed/skipped under a single
-// "pipeline short-circuited" indicator (mirroring the admin trace's refuse collapse),
-// and only the verdict tile is active.
+// SID-90-revise: the timeline now sits ABOVE the answer and animates DURING the wait
+// via a MOCK schedule (usePipelineSchedule, driven from the page). So it renders in
+// two states:
+//   • loading (output === null): tiles activate one-by-one in a neutral, uncolored,
+//     non-interactive state — the process happening "now" (present-tense eyebrow).
+//   • settled (output present): tiles take their payload summaries + the verdict tile
+//     its color; clicking a tile expands its one-line outcome.
+// Refuse short-circuits the access-diagnosis pipeline: on a refuse payload tiles 1–4
+// gray out (active→gray fades via motion-safe transition, so the retroactive skip
+// reads as a smooth dim, not a flicker) under a single shared indicator.
+// The CTA is a SEPARATE export (PipelineCTA) — it renders BELOW the answer.
 
 type Tone = "resolve" | "escalate" | "refuse";
 
@@ -46,21 +49,14 @@ function identitySummary(status: StatusFacts): string {
     .join("; ");
 }
 
+const STAGE_LABELS = ["Retrieval", "Identity", "Reasoning", "Gate", "Verdict"];
+
 type Tile = {
   label: string;
   summary: string;
   active: boolean;
   tone?: Tone;
 };
-
-// CTA copy — verdict-specific so the destination promise is honest: an escalate has
-// an escalation package; a resolve has a reasoning trace; a refuse has the grounding
-// it couldn't establish. Same admin destination, accurate framing per verdict.
-function ctaLabel(output: DiagnosisOutput): string {
-  if (output.verdict === "escalate") return "See the full escalation package";
-  if (output.verdict === "resolve") return "See the full reasoning trace";
-  return "See why this couldn't be grounded";
-}
 
 function verdictSummary(output: DiagnosisOutput): string {
   if (output.verdict === "resolve") return `Resolved · ${humanize(output.root_cause)}`;
@@ -70,7 +66,21 @@ function verdictSummary(output: DiagnosisOutput): string {
     : `Needs detail${output.missing_info ? ` · ${output.missing_info}` : ""}`;
 }
 
-function buildTiles(output: DiagnosisOutput): Tile[] {
+// CTA copy — verdict-specific so the destination promise is honest: an escalate has
+// an escalation package; a resolve has a reasoning trace; a refuse has the grounding
+// it couldn't establish. Same admin destination, accurate framing per verdict.
+export function ctaLabel(output: DiagnosisOutput): string {
+  if (output.verdict === "escalate") return "See the full escalation package";
+  if (output.verdict === "resolve") return "See the full reasoning trace";
+  return "See why this couldn't be grounded";
+}
+
+function buildTiles(output: DiagnosisOutput | null): Tile[] {
+  // Loading (mock): neutral, uncolored, no summaries — the process happening now.
+  if (!output) {
+    return STAGE_LABELS.map((label) => ({ label, summary: "", active: true }));
+  }
+
   const verdictTone: Tone =
     output.verdict === "resolve"
       ? "resolve"
@@ -120,42 +130,47 @@ function buildTiles(output: DiagnosisOutput): Tile[] {
 export function PipelineTimeline({
   output,
   revealed,
-  onOpenAdmin,
 }: {
-  output: DiagnosisOutput;
-  revealed: number; // 0..5, from the paced reveal
-  onOpenAdmin: () => void;
+  output: DiagnosisOutput | null; // null while the mock animation runs
+  revealed: number; // 0..5, from usePipelineSchedule
 }) {
-  const tiles = buildTiles(output);
-  const isRefuse = output.verdict === "refuse_out_of_scope";
-  // Default the open summary to the verdict tile so the outcome lands without a click;
-  // clicking any active tile swaps to its summary.
-  const [openTile, setOpenTile] = useState<number>(tiles.length - 1);
-  const fullyRevealed = revealed >= tiles.length;
+  const stageCount = STAGE_LABELS.length;
+  // The mock plays in FULL first. The real payload only "applies" — coloring the
+  // verdict tile, graying a refuse's stages — once the animation completes (revealed
+  // >= stageCount). So a backend faster than the 8s mock doesn't gray/color tiles
+  // mid-animation; the retroactive transition lands cleanly at the end (edge 1 & 3).
+  const applied = revealed >= stageCount ? output : null;
+  const tiles = buildTiles(applied);
+  const isRefuse = applied?.verdict === "refuse_out_of_scope";
+  const interactive = applied !== null; // summaries exist only once the payload applies
+  // Default the open summary to the verdict tile so the outcome lands without a click.
+  const [openTile, setOpenTile] = useState<number>(stageCount - 1);
+  const fullyRevealed = revealed >= stageCount;
 
   const open = tiles[openTile];
-  const showSummary = open?.active && openTile < revealed && open.summary;
+  const showSummary = interactive && open?.active && openTile < revealed && open.summary;
 
   return (
-    <div className="mt-md border-t border-border pt-md">
+    <div>
       <p className="mb-sm font-display text-displaySm italic lowercase text-text-muted">
-        how it got here
+        {interactive ? "how it got here" : "diagnosing…"}
       </p>
 
       {/* Tile row — horizontal, scrolls on narrow widths. Tiles + arrows reveal one
-          by one as `revealed` increments. */}
+          by one as `revealed` increments (the mock schedule). */}
       <div className="flex items-center gap-xs overflow-x-auto pb-xs">
         {tiles.map((tile, i) => {
           if (i >= revealed) return null;
           const isVerdict = !!tile.tone;
-          const selected = openTile === i;
+          const selected = interactive && openTile === i;
           const base =
-            "shrink-0 rounded-md border px-sm py-xs text-sm transition-colors motion-safe:animate-[fadeIn_250ms_ease-out]";
+            "shrink-0 rounded-md border px-sm py-xs text-sm motion-safe:animate-[fadeIn_250ms_ease-out] motion-safe:transition-[opacity,color,background-color,border-color] motion-safe:duration-300";
           const cls = !tile.active
             ? "border-border/60 text-text-muted opacity-60" // skipped (refuse)
             : isVerdict
               ? TILE_TONE[tile.tone!]
-              : `border-border bg-background-secondary text-text-secondary hover:text-text-primary ${selected ? "text-text-primary" : ""}`;
+              : `border-border bg-background-secondary ${selected ? "text-text-primary" : "text-text-secondary"} ${interactive ? "hover:text-text-primary" : ""}`;
+          const clickable = interactive && tile.active;
           return (
             <div key={tile.label} className="flex shrink-0 items-center gap-xs">
               {i > 0 && (
@@ -163,10 +178,10 @@ export function PipelineTimeline({
               )}
               <button
                 type="button"
-                onClick={() => tile.active && setOpenTile(i)}
-                disabled={!tile.active}
+                onClick={() => clickable && setOpenTile(i)}
+                disabled={!clickable}
                 aria-pressed={selected}
-                className={`${base} ${cls} ${tile.active ? "cursor-pointer" : "cursor-default"}`}
+                className={`${base} ${cls} ${clickable ? "cursor-pointer" : "cursor-default"}`}
               >
                 {tile.label}
               </button>
@@ -192,18 +207,27 @@ export function PipelineTimeline({
           <span className="font-mono text-monoValue">{open.summary}</span>
         </p>
       )}
-
-      {/* CTA — pivot to admin with this ticket pre-selected, once fully revealed. */}
-      {fullyRevealed && (
-        <button
-          type="button"
-          onClick={onOpenAdmin}
-          className="mt-md inline-flex items-center gap-xs text-sm text-accent transition-opacity hover:opacity-80"
-        >
-          {ctaLabel(output)}
-          <ArrowRight className="h-4 w-4" aria-hidden />
-        </button>
-      )}
     </div>
+  );
+}
+
+// The CTA — pivots to admin with this ticket pre-selected. Rendered BELOW the answer
+// (SID-90-revise layout), so it's a separate export from the tiles above the answer.
+export function PipelineCTA({
+  output,
+  onOpenAdmin,
+}: {
+  output: DiagnosisOutput;
+  onOpenAdmin: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpenAdmin}
+      className="inline-flex items-center gap-xs text-sm text-accent transition-opacity hover:opacity-80"
+    >
+      {ctaLabel(output)}
+      <ArrowRight className="h-4 w-4" aria-hidden />
+    </button>
   );
 }

@@ -13,7 +13,7 @@ import { PersonaToggle, type PersonaView } from "@/components/persona-toggle";
 import { PersonaSwitcher } from "@/components/persona-switcher";
 import { GitHubIcon } from "@/components/icons";
 import { AboutPanel } from "@/components/about-panel";
-import { PipelineTimeline } from "@/components/pipeline-timeline";
+import { usePipelineSchedule } from "@/hooks/use-pipeline-schedule";
 import { HelpCircle, Info, RotateCcw } from "lucide-react";
 import { runWalkthrough, WALKTHROUGH_KEY } from "@/lib/walkthrough";
 import "driver.js/dist/driver.css";
@@ -148,10 +148,11 @@ export default function Home() {
   const [traceSettled, setTraceSettled] = useState(false);
   const revealedRowCount = useTraceReveal(submitKey, TOTAL_TRACE_ROWS);
   const swappedRowCount = useTraceReveal(resolveKey, TOTAL_TRACE_ROWS, 150);
-  // SID-90: end-user Pipeline Timeline reveal — 5 tiles, keyed off resolveKey so it
-  // paces in AFTER the verdict lands (reduced-motion jumps straight to 5).
-  const PIPELINE_STAGES = 5;
-  const timelineRevealed = useTraceReveal(resolveKey, PIPELINE_STAGES);
+  // SID-90-revise: mock pipeline reveal — keyed off submitKey so the 5 tiles animate
+  // DURING the diagnose wait (the timeline IS the loading state), holding at the
+  // verdict tile until the real response lands. Page-side so it survives the
+  // pending→settled card swap. Reduced-motion jumps straight to fully revealed.
+  const timelineRevealed = usePipelineSchedule(submitKey);
   const handleSettled = useCallback(() => setTraceSettled(true), []);
   const diagnose = useDiagnose();
 
@@ -172,6 +173,14 @@ export default function Home() {
 
   const active = submissions.find((s) => s.id === activeId) ?? null;
   const turns = active?.turns ?? [];
+  // SID-90-revise: the pipeline timeline renders only on the LIVE/current answer.
+  // For a settled turn that's the last agent turn AND nothing is in flight, that's
+  // the current final answer; while a request is pending, the pending card is live.
+  const lastAgentTurnId = [...turns].reverse().find((t) => t.role === "agent")?.id;
+  const openActiveInAdmin = () => {
+    if (active) selectTicket(active.id);
+    handlePersonaChange("admin");
+  };
 
   // End-user portal (SID-68): this persona's own tickets for the left rail, the
   // open past ticket, and whether a detail/active view is showing (mobile drill-in).
@@ -567,14 +576,23 @@ export default function Home() {
                             key={t.id}
                             output={t.output}
                             status={active?.status}
+                            // SID-90-revise: the timeline shows on the current final
+                            // answer — the last agent turn with nothing in flight.
+                            showTimeline={!pendingAgentId && t.id === lastAgentTurnId}
+                            revealed={timelineRevealed}
+                            onOpenAdmin={openActiveInAdmin}
                           />
                         ),
                       )}
                       {pendingAgentId && !diagnose.isError && (
+                        // The live card: timeline animates as the loading state.
                         <EndUserCard
                           key={pendingAgentId}
                           output={diagnose.data ?? null}
                           status={active?.status}
+                          showTimeline
+                          revealed={timelineRevealed}
+                          onOpenAdmin={openActiveInAdmin}
                         />
                       )}
                       {pendingAgentId && diagnose.isError && (
@@ -585,24 +603,6 @@ export default function Home() {
                       )}
                       {/* SID-75: approval payoff lands as a new card below. */}
                       {approvalResultBlock(active)}
-                      {/* SID-90: Pipeline Timeline — paced reveal of the system's
-                          stages below the settled verdict. Only once the latest turn
-                          has landed (not mid-request). CTA pivots to admin with this
-                          ticket pre-selected. */}
-                      {!pendingAgentId &&
-                        (() => {
-                          const out = lastAgentOutput(active);
-                          return out ? (
-                            <PipelineTimeline
-                              output={out}
-                              revealed={timelineRevealed}
-                              onOpenAdmin={() => {
-                                selectTicket(active.id);
-                                handlePersonaChange("admin");
-                              }}
-                            />
-                          ) : null;
-                        })()}
                       <div ref={bottomRef} />
                     </div>
                   </div>

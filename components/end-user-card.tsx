@@ -1,26 +1,32 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
-import { Check, AlertTriangle, Info, Loader2 } from "lucide-react";
+import { type ReactNode } from "react";
+import { Check, AlertTriangle, Info } from "lucide-react";
 import type { DiagnosisOutput } from "@/lib/schema";
 import type { SubmissionStatus } from "@/lib/store";
 import { OutcomeCard } from "./outcome-card";
-import { usePrefersReducedMotion } from "@/hooks/use-trace-reveal";
+import { PipelineTimeline, PipelineCTA } from "./pipeline-timeline";
+import { PIPELINE_STAGES } from "@/hooks/use-pipeline-schedule";
 
-// End-user card (SID-49 B; SID-59). ONE persistent card that spans the whole
-// submitted lifecycle — it renders the loading state and the verdict from the
-// SAME subtree, so the card morphs in place (loading pill + text → verdict pill +
-// answer) rather than appearing retroactively. Mounted keyed by submitKey in the
-// page, so it persists across loading→verdict (continuity) and resets per submission.
+// End-user card (SID-49 B; SID-59). The verdict moment: pill + headline + answer.
 //
-// SID-90 follow-on: the Filed → Checked → [third] lifecycle stepper was removed —
-// it visually mirrored the pipeline timeline ("how it got here") rendered below the
-// card and read as the same thing twice. The verdict pill + prose response carry the
-// operational state; the pipeline timeline is the load-bearing aha surface. During
-// loading, the pill (spinner) + the synchronized headline ("Filing…" → "Checking…")
-// still convey progression.
+// SID-90-revise: the pipeline timeline now sits ABOVE the answer and IS the loading
+// state — it animates on the mock schedule during the diagnose wait (the verdict
+// tile holds uncolored until the real response lands), then the answer fades in
+// below. The old loading pill + "Filing…/Checking…" stepper are gone (the timeline
+// carries the wait). Card order: timeline → hairline → verdict pill + answer →
+// verdict-specific CTA. The timeline only renders for the LIVE/current answer
+// (showTimeline, set by the page); past tickets render the answer alone.
+//
+// `revealed` (0..PIPELINE_STAGES) is driven page-side by usePipelineSchedule and
+// passed in, so it survives the pending→settled card swap. The answer is gated on
+// the timeline FINISHING (revealed >= PIPELINE_STAGES): a backend faster than the
+// 8s mock still plays the full animation before the answer appears.
+
+type Accent = "resolve" | "escalate" | "neutral";
 
 interface CardContent {
+  accent: Accent;
   pillIcon: ReactNode;
   pillClass: string;
   pillLabel: string;
@@ -45,8 +51,8 @@ function ownerLabel(owner: string): string {
 // --- Verdict content. Pill + headline + body + next-step per verdict. ---
 function content(output: DiagnosisOutput): CardContent {
   if (output.verdict === "resolve") {
-    // SID-56: resolve = the user gets their answer directly. No ticket created.
     return {
+      accent: "resolve",
       pillIcon: <Check size={16} aria-hidden />,
       pillClass:
         "border border-verdict-resolve/40 bg-verdict-resolve/10 text-verdict-resolve",
@@ -58,9 +64,9 @@ function content(output: DiagnosisOutput): CardContent {
     };
   }
   if (output.verdict === "escalate") {
-    // SID-56: escalate = ticket created, full evidence attached for the admin.
     const team = ownerLabel(output.owner);
     return {
+      accent: "escalate",
       pillIcon: <AlertTriangle size={16} aria-hidden />,
       pillClass:
         "border border-verdict-escalate/40 bg-verdict-escalate/10 text-verdict-escalate",
@@ -77,10 +83,10 @@ function content(output: DiagnosisOutput): CardContent {
   // refuse — three SIBLING shapes (SID-56 Phase 2).
   if (output.refuse_reason === "resource_ambiguity") {
     return {
+      accent: "neutral",
       pillIcon: <Info size={16} aria-hidden />,
       pillClass: "border border-border bg-background-primary text-text-secondary",
       pillLabel: "Need a bit more",
-      // Beat 1 — authored lead; Beat 2 (body) = the model's missing_info ask.
       headline: "Checked your access — before I can be sure, I need a bit more.",
       body:
         output.missing_info ??
@@ -90,6 +96,7 @@ function content(output: DiagnosisOutput): CardContent {
   }
   if (output.refuse_reason === "intent_ambiguity") {
     return {
+      accent: "neutral",
       pillIcon: <Info size={16} aria-hidden />,
       pillClass: "border border-border bg-background-primary text-text-secondary",
       pillLabel: "Need a bit more",
@@ -102,6 +109,7 @@ function content(output: DiagnosisOutput): CardContent {
   }
   // out_of_scope — terminal; routed nowhere, the user goes to the helpdesk.
   return {
+    accent: "neutral",
     pillIcon: <Info size={16} aria-hidden />,
     pillClass: "border border-border bg-background-primary text-text-secondary",
     pillLabel: "Not handled here",
@@ -110,22 +118,6 @@ function content(output: DiagnosisOutput): CardContent {
       "Your question is outside what this system can diagnose. Nothing has been " +
       "routed automatically — you'll need to reach out to your IT helpdesk directly.",
     nextStep: "Contact your IT helpdesk to get started.",
-  };
-}
-
-// --- Loading content. Same card shell, no verdict yet: the pill spins and the
-// headline rides the phase ("Filing…" at submit → "Checking…" at ~400ms). ---
-type LoadingPhase = "filed" | "checked";
-
-function loadingContent(phase: LoadingPhase): CardContent {
-  return {
-    pillIcon: <Loader2 size={16} aria-hidden className="motion-safe:animate-spin" />,
-    pillClass: "border border-border bg-background-primary text-text-secondary",
-    pillLabel: "Working",
-    headline:
-      phase === "filed" ? "Filing your request…" : "Checking your access…",
-    body: "",
-    nextStep: "",
   };
 }
 
@@ -161,10 +153,9 @@ function approvalLine(
     );
   }
 
-  // add_to_group — SID-75: this card is now the FROZEN submit-moment. It keeps the
+  // add_to_group — SID-75: this card is the FROZEN submit-moment. It keeps the
   // next-step + the persistent Slack routing record for EVERY status; the terminal
-  // outcome (approved/denied) renders as a separate ApprovalResultCard below, so it
-  // is NOT shown inline here. (Pre-SID-75 the card mutated in place on approval.)
+  // outcome (approved/denied) renders as a separate ApprovalResultCard below.
   if (aa?.type === "add_to_group") {
     const slack = aa.slack_permalink;
     return (
@@ -191,63 +182,73 @@ function approvalLine(
 export function EndUserCard({
   output,
   status,
+  showTimeline = false,
+  revealed = PIPELINE_STAGES,
+  onOpenAdmin,
 }: {
   output: DiagnosisOutput | null;
   status?: SubmissionStatus;
+  showTimeline?: boolean; // SID-90-revise: only the live/current answer animates
+  revealed?: number; // 0..PIPELINE_STAGES, from usePipelineSchedule (page-side)
+  onOpenAdmin?: () => void;
 }) {
-  const reduced = usePrefersReducedMotion();
-  // Time-paced loading headline: Filed at mount, Checked ~400ms later. Reduced-motion
-  // snaps straight to "checked" via the initial state — no setState needed. The card
-  // remounts per submission (keyed by submitKey in the page), so the initial phase is
-  // correct each time and the timer re-arms.
-  const [phase, setPhase] = useState<LoadingPhase>(reduced ? "checked" : "filed");
-  useEffect(() => {
-    if (reduced) return; // already "checked" from the initializer
-    const t = setTimeout(() => setPhase("checked"), 400);
-    return () => clearTimeout(t);
-  }, [reduced]);
-
-  const c = output ? content(output) : loadingContent(phase);
   const settled = output !== null;
+  // The answer waits for the timeline to finish (edge case 1: a fast backend still
+  // plays the full mock). Non-timeline cards (past tickets) show the answer as soon
+  // as they're settled. Reduced-motion: revealed is already PIPELINE_STAGES.
+  const answerVisible = showTimeline ? settled && revealed >= PIPELINE_STAGES : settled;
+  const c = output ? content(output) : null;
 
   return (
     <div className="flex flex-col gap-md">
       <OutcomeCard>
         <div className="flex flex-col gap-lg">
-          {/* Status pill — top-left. Morphs from the loading pill to the verdict. */}
-          <div>
-            <span
-              className={`inline-flex items-center gap-xs rounded-sm px-md py-xs ${c.pillClass}`}
-            >
-              {c.pillIcon}
-              {c.pillLabel}
-            </span>
-          </div>
-
-          {/* Headline — the end-user verdict moment, in display serif (SID-67).
-              Carries the synchronized loading text, then the verdict statement. */}
-          <h2 className="font-display text-[22px] font-medium leading-heading tracking-display text-text-primary [text-wrap:balance]">
-            {c.headline}
-          </h2>
-
-          {/* Body + next-step appear only on the verdict, and fade in on the API
-              return (250ms delay, held hidden via `both`). */}
-          {settled && c.body && (
-            <p className="text-text-secondary [text-wrap:pretty] motion-safe:animate-[fadeIn_250ms_ease-out_250ms_both]">
-              {c.body}
-            </p>
+          {/* Timeline — ABOVE the answer, animates during the wait (the loading
+              state itself), then colors from the payload. */}
+          {showTimeline && (
+            <PipelineTimeline output={output} revealed={revealed} />
           )}
-          {/* SID-70: once an escalate has a downstream status, its follow-up line
-              (approved + Notion link / denied / routed + Slack link) replaces the
-              default next-step. Other states keep the default next-step. */}
-          {settled &&
-            output &&
-            (approvalLine(output, status, c.nextStep) ??
-              (c.nextStep ? (
-                <p className="text-sm text-text-muted motion-safe:animate-[fadeIn_250ms_ease-out_350ms_both]">
-                  {c.nextStep}
-                </p>
-              ) : null))}
+
+          {/* Answer block — pill + headline + body + next-step + CTA. Gated so it
+              appears only after the timeline completes. A hairline separates it from
+              the timeline above. */}
+          {answerVisible && c && output && (
+            <div
+              className={`flex flex-col gap-lg ${showTimeline ? "border-t border-border pt-lg" : ""}`}
+            >
+              {/* Status pill — the verdict. */}
+              <div>
+                <span
+                  className={`inline-flex items-center gap-xs rounded-sm px-md py-xs ${c.pillClass}`}
+                >
+                  {c.pillIcon}
+                  {c.pillLabel}
+                </span>
+              </div>
+
+              {/* Headline — the end-user verdict moment, display serif (SID-67). */}
+              <h2 className="font-display text-[22px] font-medium leading-heading tracking-display text-text-primary [text-wrap:balance]">
+                {c.headline}
+              </h2>
+
+              {/* Body. */}
+              {c.body && (
+                <p className="text-text-secondary [text-wrap:pretty]">{c.body}</p>
+              )}
+
+              {/* SID-70: escalate follow-up line (routed/approved/denied) replaces
+                  the default next-step; other states keep the default. */}
+              {approvalLine(output, status, c.nextStep) ??
+                (c.nextStep ? (
+                  <p className="text-sm text-text-muted">{c.nextStep}</p>
+                ) : null)}
+
+              {/* SID-90-revise: verdict-specific CTA, BELOW the answer. */}
+              {showTimeline && onOpenAdmin && (
+                <PipelineCTA output={output} onOpenAdmin={onOpenAdmin} />
+              )}
+            </div>
+          )}
         </div>
       </OutcomeCard>
     </div>

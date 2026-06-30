@@ -184,13 +184,13 @@ export function EndUserCard({
   status,
   showTimeline = false,
   revealed = PIPELINE_STAGES,
-  onOpenAdmin,
+  onAdvance,
 }: {
   output: DiagnosisOutput | null;
   status?: SubmissionStatus;
   showTimeline?: boolean; // SID-90-revise: only the live/current answer animates
   revealed?: number; // 0..PIPELINE_STAGES, from usePipelineSchedule (page-side)
-  onOpenAdmin?: () => void;
+  onAdvance?: () => void;
 }) {
   const settled = output !== null;
   // The answer waits for the timeline to finish (edge case 1: a fast backend still
@@ -244,8 +244,8 @@ export function EndUserCard({
                 ) : null)}
 
               {/* SID-90-revise: verdict-specific CTA, BELOW the answer. */}
-              {showTimeline && onOpenAdmin && (
-                <PipelineCTA output={output} onOpenAdmin={onOpenAdmin} />
+              {showTimeline && onAdvance && (
+                <PipelineCTA output={output} onAdvance={onAdvance} />
               )}
             </div>
           )}

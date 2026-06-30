@@ -66,12 +66,13 @@ function verdictSummary(output: DiagnosisOutput): string {
     : `Needs detail${output.missing_info ? ` · ${output.missing_info}` : ""}`;
 }
 
-// CTA copy — verdict-specific so the destination promise is honest: an escalate has
-// an escalation package; a resolve has a reasoning trace; a refuse has the grounding
-// it couldn't establish. Same admin destination, accurate framing per verdict.
+// CTA copy — SID-91: this CTA now pivots to the METHODOLOGY view (how the verdict was
+// graded), not Admin, so the copy promises grading insight. The "escalation package"
+// framing moved to Methodology's own bottom CTA ("See what your admin received →"),
+// which actually leads to Admin — so the chain reads truthfully at each step.
 export function ctaLabel(output: DiagnosisOutput): string {
-  if (output.verdict === "escalate") return "See the full escalation package";
-  if (output.verdict === "resolve") return "See the full reasoning trace";
+  if (output.verdict === "escalate") return "See how this was graded";
+  if (output.verdict === "resolve") return "See how this was graded";
   return "See why this couldn't be grounded";
 }
 
@@ -215,15 +216,15 @@ export function PipelineTimeline({
 // (SID-90-revise layout), so it's a separate export from the tiles above the answer.
 export function PipelineCTA({
   output,
-  onOpenAdmin,
+  onAdvance,
 }: {
   output: DiagnosisOutput;
-  onOpenAdmin: () => void;
+  onAdvance: () => void;
 }) {
   return (
     <button
       type="button"
-      onClick={onOpenAdmin}
+      onClick={onAdvance}
       className="inline-flex items-center gap-xs text-sm text-accent transition-opacity hover:opacity-80"
     >
       {ctaLabel(output)}

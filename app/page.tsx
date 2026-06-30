@@ -27,6 +27,7 @@ import {
   type Submission,
 } from "@/lib/store";
 import { lastAgentOutput } from "@/lib/submission";
+import { MethodologyView } from "@/components/methodology-view";
 import { PERSONAS, DEMO_USER } from "@/lib/seed-submissions";
 
 const REPO_URL = "https://github.com/randomindianguy/admin-diagnosis-agent";
@@ -181,6 +182,12 @@ export default function Home() {
     if (active) selectTicket(active.id);
     handlePersonaChange("admin");
   };
+  // SID-91: the end-user verdict CTA now pivots to Methodology (the middle act),
+  // carrying the active ticket as context; Methodology's own CTA goes on to Admin.
+  const openActiveInMethodology = () => {
+    if (active) selectTicket(active.id);
+    handlePersonaChange("methodology");
+  };
 
   // End-user portal (SID-68): this persona's own tickets for the left rail, the
   // open past ticket, and whether a detail/active view is showing (mobile drill-in).
@@ -232,6 +239,11 @@ export default function Home() {
     (s) => (s.status === "approved" || s.status === "denied") && s.decisionSeen === false,
   ).length;
   const selectedSub = submissions.find((s) => s.id === selectedId) ?? null;
+  // SID-91: the verdict the Methodology view anchors on — the ACTIVE conversation's
+  // latest verdict, i.e. one the visitor produced THIS session. Seeded/admin-selected
+  // history doesn't count (the store pre-seeds selectedId for the admin feed), so we
+  // read `active` only. Null → empty (aerial) state.
+  const methodologyOutput = active ? lastAgentOutput(active) : null;
   // The selected ticket is "live" only while it's the active conversation still
   // being diagnosed — then the trace animates (SID-59) and the package gates.
   const selectedIsLive =
@@ -241,8 +253,9 @@ export default function Home() {
   // End user → decisions seen (SID-75).
   const handlePersonaChange = (next: PersonaView) => {
     setPersonaView(next);
+    // Clear the relevant unseen indicator; Methodology has none (no side effect).
     if (next === "admin") markAllSeen();
-    else markDecisionsSeen();
+    else if (next === "end-user") markDecisionsSeen();
   };
 
   // Auto-scroll the transcript to the newest turn as the conversation grows.
@@ -580,7 +593,7 @@ export default function Home() {
                             // answer — the last agent turn with nothing in flight.
                             showTimeline={!pendingAgentId && t.id === lastAgentTurnId}
                             revealed={timelineRevealed}
-                            onOpenAdmin={openActiveInAdmin}
+                            onAdvance={openActiveInMethodology}
                           />
                         ),
                       )}
@@ -592,7 +605,7 @@ export default function Home() {
                           status={active?.status}
                           showTimeline
                           revealed={timelineRevealed}
-                          onOpenAdmin={openActiveInAdmin}
+                          onAdvance={openActiveInMethodology}
                         />
                       )}
                       {pendingAgentId && diagnose.isError && (
@@ -688,6 +701,15 @@ export default function Home() {
             </div>
           </section>
         </div>
+      ) : personaView === "methodology" ? (
+        // METHODOLOGY (SID-91) — the middle act. Empty (aerial) when no verdict is
+        // active this session; full content with receipts + verdict-aware anchor once
+        // one is. CTA pivots on to Admin with the active ticket pre-selected.
+        <MethodologyView
+          output={methodologyOutput}
+          onTryQuestion={() => handlePersonaChange("end-user")}
+          onSeeAdmin={openActiveInAdmin}
+        />
       ) : (
         // ADMIN — ticket system (SID-63): feed (list) + selected ticket (detail),
         // both reading the shared store. This replaces the diagnose.data-coupled

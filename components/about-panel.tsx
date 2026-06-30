@@ -29,6 +29,11 @@ const LINKS = [
   { label: "LINKEDIN", text: "https://www.linkedin.com/in/sidharthsundaram/", href: LINKEDIN_URL },
 ];
 
+// SID-92: hiring CTA. Copy verbatim from the card; the closing phrase is the link.
+const CALENDLY_URL = "https://calendly.com/hello-sidharthsundaram/30min";
+const HIRING_INTRO =
+  "I'm looking for AI PM roles at AI-native companies — Series A through YC seed-stage startups, plus established AI teams at larger companies. If you're hiring, want to talk eval methodology and refuse-first architecture, or want to push back on what's here — ";
+
 export function AboutPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -115,6 +120,22 @@ export function AboutPanel({ open, onClose }: { open: boolean; onClose: () => vo
                 </span>
               </a>
             ))}
+          </div>
+
+          {/* SID-92: hiring CTA — converts the demo's visibility into a booked call. */}
+          <div className="border-t border-border pt-md">
+            <p className="text-[14px] leading-[1.5] text-text-primary [text-wrap:pretty]">
+              {HIRING_INTRO}
+              <a
+                href={CALENDLY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-accent underline-offset-2 hover:underline"
+              >
+                book a 30-min call
+              </a>
+              .
+            </p>
           </div>
         </div>
       </div>

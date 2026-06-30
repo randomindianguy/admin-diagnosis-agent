@@ -68,18 +68,22 @@ export const tokens = {
   // hairline #2D2925. text.muted lightened to #948A7C so the 12px mono audit
   // labels clear WCAG AA (5.7:1 on bg, 4.7:1 on surface-2); the card's #6B6359
   // tested at 3.0:1 and would have failed. tertiary = hover / secondary surface.
+  // SID-92: intensity reduced (Option X) — page + panels lifted ~one step to cut
+  // visual weight; tertiary (hover) + all text colors held; border lightened to stay
+  // crisp on the lighter base. All text/surface pairs still clear WCAG AA (muted on
+  // the lightest surface = 4.66:1). Mirrored in globals.css .dark.
   colorDark: {
     background: {
-      primary: "#0F0E0C",            // warm near-black page (brown undertone)
-      secondary: "#1A1815",          // panels / elevated surface
-      tertiary: "#252220",           // hover / secondary surface
+      primary: "#17150F",            // warm dark page (lifted from #0F0E0C)
+      secondary: "#211E19",          // panels / elevated surface (lifted from #1A1815)
+      tertiary: "#252220",           // hover / secondary surface (unchanged)
     },
     text: {
       primary: "#F2EDE3",            // warm off-white (NOT pure white)
       secondary: "#A89F8E",          // warm secondary
       muted: "#948A7C",              // faint — audit labels; AA-safe warm (card #6B6359 → 3.0:1)
     },
-    border: "#2D2925",               // hairline rules
+    border: "#34302A",               // hairline rules (lightened from #2D2925)
   },
 
   font: {

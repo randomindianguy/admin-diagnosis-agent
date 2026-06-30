@@ -23,13 +23,17 @@
    undertone, warm off-white text (never pure white), hairline #2D2925. Mirrors
    tokens.ts colorDark — keep in sync. The app is dark-only (<html class="dark">). */
 .dark {
-  --color-bg-primary: #0f0e0c;
-  --color-bg-secondary: #1a1815;
+  /* SID-92: dark-mode intensity reduced (Option X) — page + panels lifted ~one step
+     to cut visual weight; hover-surface + text colors unchanged; border lightened a
+     touch to stay crisp on the lighter base. All text/surface pairs clear WCAG AA
+     (muted on the lightest surface = 4.66:1). */
+  --color-bg-primary: #17150f;
+  --color-bg-secondary: #211e19;
   --color-bg-tertiary: #252220;
   --color-text-primary: #f2ede3;
   --color-text-secondary: #a89f8e;
   --color-text-muted: #948a7c; /* SID-67: AA-safe warm (card #6B6359 → 3.0:1) */
-  --color-border: #2d2925;
+  --color-border: #34302a;
 }
 
 /* Amber selection that belongs to the warm register, not the browser default. */
@@ -82,8 +86,8 @@
    border, no shadow; mono eyebrow + Newsreader title + Inter body; amber outline
    primary, muted text secondary/skip. */
 .cleared-tour.driver-popover {
-  background-color: #1a1815;
-  border: 1px solid #2d2925;
+  background-color: #211e19; /* SID-92: synced to lifted secondary surface */
+  border: 1px solid #34302a;
   border-radius: 8px;
   box-shadow: none;
   padding: 20px;
